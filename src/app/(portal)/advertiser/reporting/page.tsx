@@ -1,97 +1,232 @@
 "use client";
-import { useState } from "react";
-import { Download } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Download, RefreshCw } from "lucide-react";
 import { PortalLayout } from "@/components/shell/PortalLayout";
-import { StatCard, DataTable, Button, Select } from "@/components/ui";
-import { formatCurrency, formatNumber, formatPercent, formatDate } from "@/lib/utils";
-import type { ReportRow } from "@/types";
+import { StatCard, StatCardSkeleton, DataTable, Button, Select, Banner } from "@/components/ui";
+import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
+import {
+  fetchReportingSummary,
+  exportReportingCsv,
+  downloadCsv,
+  groupByCampaign,
+  aggregateRows,
+  type ReportingSummaryResponse,
+  type DateRange,
+} from "@/lib/api/reporting";
 import type { Column } from "@/components/ui/DataTable";
 
-const DEMO_ROWS: ReportRow[] = [
-  { date: "2026-08-08", campaign_id: "c1", campaign_name: "Spring Promo", impressions: 5820, clicks: 122, ctr: 0.021, spend_usd: 69.84 },
-  { date: "2026-08-08", campaign_id: "c2", campaign_name: "Brand Awareness", impressions: 5700, clicks: 51,  ctr: 0.009, spend_usd: 57.00 },
-  { date: "2026-08-07", campaign_id: "c1", campaign_name: "Spring Promo",   impressions: 6100, clicks: 128, ctr: 0.021, spend_usd: 73.20 },
-  { date: "2026-08-07", campaign_id: "c2", campaign_name: "Brand Awareness", impressions: 5900, clicks: 53,  ctr: 0.009, spend_usd: 59.00 },
-];
-
-const columns: Column<ReportRow>[] = [
-  { key: "date", header: "Date" },
-  { key: "campaign_name", header: "Campaign" },
-  { key: "impressions", header: "Impressions", align: "right", render: (r) => formatNumber(r.impressions) },
-  { key: "clicks", header: "Clicks", align: "right", render: (r) => formatNumber(r.clicks) },
-  { key: "ctr", header: "CTR", align: "right", render: (r) => formatPercent(r.ctr) },
-  { key: "spend_usd", header: "Spend", align: "right", render: (r) => formatCurrency(r.spend_usd) },
-];
-
-function exportCsv(rows: ReportRow[]) {
-  const headers = ["date", "campaign_id", "campaign_name", "impressions", "clicks", "ctr", "spend_usd"];
-  const lines = [
-    headers.join(","),
-    ...rows.map((r) =>
-      [r.date, r.campaign_id ?? "", r.campaign_name ?? "",
-       r.impressions, r.clicks, (r.ctr * 100).toFixed(2) + "%", r.spend_usd.toFixed(2)].join(",")
-    ),
-  ];
-  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `ambient-report-${formatDate(new Date())}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+// ---------------------------------------------------------------
+// Auth token helper — replace with real session context when wired
+// ---------------------------------------------------------------
+function useAuthToken(): string | null {
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    setToken(
+      localStorage.getItem("ambient_token") ??
+      sessionStorage.getItem("ambient_token") ??
+      null
+    );
+  }, []);
+  return token;
 }
 
-export default function AdvertiserReportingPage() {
-  const [range, setRange] = useState("30d");
+// ---------------------------------------------------------------
+// Per-campaign summary row for the breakdown table
+// ---------------------------------------------------------------
+interface CampaignBreakdownRow {
+  campaign_id: string;
+  impressions_str: string;
+  clicks_str: string;
+  ctr_str: string;
+  spend_str: string;
+}
 
-  const totals = DEMO_ROWS.reduce(
-    (acc, r) => ({ impressions: acc.impressions + r.impressions, clicks: acc.clicks + r.clicks, spend: acc.spend + r.spend_usd }),
-    { impressions: 0, clicks: 0, spend: 0 }
+const columns: Column<CampaignBreakdownRow>[] = [
+  { key: "campaign_id", header: "Campaign ID" },
+  { key: "impressions_str", header: "Impressions", align: "right" },
+  { key: "clicks_str", header: "Clicks", align: "right" },
+  { key: "ctr_str", header: "CTR", align: "right" },
+  { key: "spend_str", header: "Spend", align: "right" },
+];
+
+// ---------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------
+export default function AdvertiserReportingPage() {
+  const token = useAuthToken();
+  const [range, setRange] = useState<DateRange>("30d");
+  const [data, setData] = useState<ReportingSummaryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const load = useCallback(
+    async (r: DateRange) => {
+      setLoading(true);
+      setError(null);
+      try {
+        if (!token) {
+          setData(null);
+          setLoading(false);
+          return;
+        }
+        // Single call — no campaign_id filter → server returns all campaigns for JWT holder
+        const result = await fetchReportingSummary(token, r);
+        setData(result);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load reporting data. Please try again."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token]
   );
-  const totalCtr = totals.clicks / totals.impressions;
+
+  useEffect(() => {
+    load(range);
+  }, [load, range]);
+
+  const handleExport = async () => {
+    if (!token) return;
+    setExporting(true);
+    try {
+      // format=csv — same endpoint, server returns attachment blob
+      const blob = await exportReportingCsv(token, range);
+      downloadCsv(blob, "report");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Build per-campaign breakdown from grouped rows
+  const breakdownRows: CampaignBreakdownRow[] = (() => {
+    if (!data?.rows?.length) return [];
+    const grouped = groupByCampaign(data.rows);
+    return Array.from(grouped.entries()).map(([campaign_id, rows]) => {
+      const totals = aggregateRows(rows);
+      return {
+        campaign_id,
+        impressions_str: formatNumber(totals.impressions),
+        clicks_str: formatNumber(totals.clicks),
+        ctr_str: formatPercent(totals.ctr),
+        spend_str: formatCurrency(totals.spend_usd),
+      };
+    });
+  })();
+
+  // Top-level totals come directly from the API response
+  const totalSpendUsd = (data?.total_spend_cents ?? 0) / 100;
 
   return (
     <PortalLayout portalType="advertiser" userName="Alex">
       <div className="space-y-8">
+
+        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Reporting</h1>
           <div className="flex items-center gap-3">
-            <Select value={range} onChange={(e) => setRange(e.target.value)} aria-label="Date range">
+            <Select
+              value={range}
+              onChange={(e) => setRange(e.target.value as DateRange)}
+              aria-label="Date range"
+            >
               <option value="7d">Last 7 days</option>
               <option value="30d">Last 30 days</option>
               <option value="90d">Last 90 days</option>
               <option value="all">All time</option>
             </Select>
-            <Button variant="secondary" size="sm" onClick={() => exportCsv(DEMO_ROWS)}>
-              <Download size={14} /> Export CSV
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => load(range)}
+              aria-label="Refresh reporting data"
+            >
+              <RefreshCw size={14} aria-hidden="true" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExport}
+              loading={exporting}
+              disabled={!data || loading}
+            >
+              <Download size={14} aria-hidden="true" /> Export CSV
             </Button>
           </div>
         </div>
 
+        {/* Error */}
+        {error && (
+          <Banner
+            variant="error"
+            message={error}
+            action={{ label: "Retry", onClick: () => load(range) }}
+          />
+        )}
+
+        {/* No auth token — dev mode */}
+        {!token && !loading && !error && (
+          <Banner
+            variant="info"
+            message="Sign in to view reporting data."
+          />
+        )}
+
+        {/* Stat cards — driven by top-level totals from API */}
         <div className="grid grid-cols-4 gap-4">
-          <StatCard label="Impressions" value={formatNumber(totals.impressions)} />
-          <StatCard label="Clicks" value={formatNumber(totals.clicks)} />
-          <StatCard label="CTR" value={formatPercent(totalCtr)} />
-          <StatCard label="Spend" value={formatCurrency(totals.spend)} />
+          {loading ? (
+            <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
+          ) : (
+            <>
+              <StatCard label="Impressions" value={formatNumber(data?.total_impressions ?? 0)} />
+              <StatCard label="Clicks"      value={formatNumber(data?.total_clicks ?? 0)} />
+              <StatCard label="CTR"         value={formatPercent(data?.overall_ctr ?? 0)} />
+              <StatCard label="Spend"       value={formatCurrency(totalSpendUsd)} />
+            </>
+          )}
         </div>
 
-        {/* Chart placeholder — Recharts/Chart.js wired up when Core reporting API is live */}
+        {/* Chart slot — wires once Core confirms time-series shape in rows */}
         <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-lg)] p-6 h-48 flex items-center justify-center">
-          <span className="text-[13px] text-[var(--color-text-secondary)]">Impressions over time — chart renders once reporting API is connected</span>
+          <span className="text-[13px] text-[var(--color-text-secondary)]">
+            Impressions over time — Recharts chart wires once daily time-series shape confirmed with Core
+          </span>
         </div>
 
+        {/* Per-campaign breakdown */}
         <section aria-labelledby="by-campaign-heading">
-          <h2 id="by-campaign-heading" className="text-[15px] font-semibold text-[var(--color-text-primary)] mb-4">By campaign</h2>
+          <h2 id="by-campaign-heading" className="text-[15px] font-semibold text-[var(--color-text-primary)] mb-4">
+            By campaign
+          </h2>
           <DataTable
             columns={columns}
-            rows={DEMO_ROWS}
-            emptyMessage="No data yet. Data appears once your campaign is live and serving impressions."
+            rows={breakdownRows}
+            emptyMessage={
+              loading
+                ? "Loading…"
+                : "No data yet. Data appears once your campaign is live and serving impressions."
+            }
           />
         </section>
 
-        <Button variant="secondary" onClick={() => exportCsv(DEMO_ROWS)}>
-          <Download size={14} /> Export all data as CSV
-        </Button>
+        {/* Footer export */}
+        {breakdownRows.length > 0 && (
+          <Button variant="secondary" onClick={handleExport} loading={exporting}>
+            <Download size={14} aria-hidden="true" /> Export all data as CSV
+          </Button>
+        )}
+
+        {/* Provenance note */}
+        <p className="text-[11px] text-[var(--color-text-secondary)]">
+          ⓘ Data sourced from auditable log store aggregates — reproducible from raw log files.
+        </p>
+
       </div>
     </PortalLayout>
   );
