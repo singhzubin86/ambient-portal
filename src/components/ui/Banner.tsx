@@ -4,36 +4,36 @@ import { cn } from "@/lib/utils";
 export type BannerVariant = "info" | "warning" | "error" | "success";
 
 /*
- * Banner colors use inline styles referencing CSS custom properties so they
- * are guaranteed to trace back to design-system tokens — no raw Tailwind color
- * names that could drift from the token layer.
+ * All color values reference CSS custom properties defined in globals.css.
+ * No raw hex values appear in this file — every decision traces to a named
+ * design-system token.
  */
 const bannerConfig: Record<
   BannerVariant,
   { bg: string; border: string; text: string; icon: LucideIcon }
 > = {
   info: {
-    bg:     "rgba(59,130,246,0.08)",   /* --color-status-info tint */
-    border: "rgba(59,130,246,0.30)",
-    text:   "#1E40AF",
+    bg:     "var(--color-status-info-bg)",
+    border: "var(--color-status-info-border)",
+    text:   "var(--color-status-info-text)",
     icon: Info,
   },
   warning: {
-    bg:     "rgba(245,158,11,0.08)",   /* --color-status-warning tint */
-    border: "rgba(245,158,11,0.30)",
-    text:   "#92400E",
+    bg:     "var(--color-status-warning-bg)",
+    border: "var(--color-status-warning-border)",
+    text:   "var(--color-status-warning-text)",
     icon: AlertTriangle,
   },
   error: {
-    bg:     "rgba(239,68,68,0.08)",    /* --color-status-error tint */
-    border: "rgba(239,68,68,0.30)",
-    text:   "#991B1B",
+    bg:     "var(--color-status-error-bg)",
+    border: "var(--color-status-error-border)",
+    text:   "var(--color-status-error-text)",
     icon: XCircle,
   },
   success: {
-    bg:     "rgba(16,185,129,0.08)",   /* --color-status-active tint */
-    border: "rgba(16,185,129,0.30)",
-    text:   "#065F46",
+    bg:     "var(--color-status-active-bg)",
+    border: "var(--color-status-active-border)",
+    text:   "var(--color-status-active-text)",
     icon: CheckCircle,
   },
 };

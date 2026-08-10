@@ -28,8 +28,8 @@ export function DataTable<T extends object>({
     >
       <table className="w-full border-collapse">
         <thead className="sticky top-0 z-10">
-          <tr className="bg-[var(--color-surface-sidebar)] dark:bg-[var(--color-surface-card)]"
-            style={{ backgroundColor: "#F8F9FA" }}
+          <tr
+            style={{ backgroundColor: "var(--color-surface-page)" }}
           >
             {columns.map((col) => (
               <th

@@ -37,15 +37,32 @@
 
     /* Status */
     --color-status-active: #10B981;
+    --color-status-active-bg: #D1FAE5;
+    --color-status-active-border: #6EE7B7;
+    --color-status-active-text: #065F46;
     --color-status-warning: #F59E0B;
+    --color-status-warning-bg: #FEF3C7;
+    --color-status-warning-border: #FCD34D;
+    --color-status-warning-text: #92400E;
     --color-status-error: #EF4444;
+    --color-status-error-bg: #FEE2E2;
+    --color-status-error-border: #FCA5A5;
+    --color-status-error-text: #991B1B;
     --color-status-neutral: #9CA3AF;
     --color-status-info: #3B82F6;
+    --color-status-info-bg: #DBEAFE;
+    --color-status-info-border: #93C5FD;
+    --color-status-info-text: #1E40AF;
 
     /* CTA (ad unit) */
     --color-cta-primary: #4F46E5;
     --color-cta-primary-hover: #4338CA;
     --color-cta-text: #FFFFFF;
+
+    /* Code block — dark surface (bg is --color-brand-primary navy) */
+    --color-code-text: #E5E7EB;
+    --color-code-label: #9CA3AF;
+    --color-code-hover: rgba(255,255,255,0.10);
 
     /* Spacing — 4px base */
     --space-1: 4px;
