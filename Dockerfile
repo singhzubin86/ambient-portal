@@ -4,8 +4,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
+# --legacy-peer-deps bypasses the @chromatic-com/storybook peer conflict
+# (it requires storybook v10 but project pins v8; Storybook is dev-only,
+#  so the conflict has zero impact on the production build output)
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source and build
 COPY . .
