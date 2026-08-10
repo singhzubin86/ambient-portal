@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, ExternalLink, LogOut, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,16 @@ interface TopBarProps {
   onLogout?: () => void;
 }
 
+const dropdownContent =
+  "min-w-[144px] bg-[var(--color-surface-card)] border border-[var(--color-border-default)] " +
+  "rounded-[var(--radius-md)] p-1 z-30";
+
+const dropdownItem =
+  "flex items-center gap-2 px-3 py-2 text-[13px] rounded-[var(--radius-sm)] " +
+  "cursor-pointer select-none outline-none " +
+  "hover:bg-[var(--color-surface-hover)] focus:bg-[var(--color-surface-hover)] " +
+  "data-[disabled]:opacity-50 data-[disabled]:pointer-events-none";
+
 export function TopBar({
   portalType,
   userName,
@@ -18,58 +28,62 @@ export function TopBar({
   onSwitchPortal,
   onLogout,
 }: TopBarProps) {
-  const [portalOpen, setPortalOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
-
   return (
     <header
-      className="h-14 flex items-center justify-between px-6 border-b border-[var(--color-border-default)] bg-[var(--color-surface-card)] z-20 relative"
+      className="h-14 flex items-center justify-between px-6 bg-[var(--color-surface-card)] z-20 relative"
+      style={{ boxShadow: "var(--shadow-topbar)" }}
       role="banner"
     >
       {/* Logo + portal switcher */}
       <div className="flex items-center gap-4">
-        <a href="/" aria-label="Ambient home" className="flex items-center gap-2 text-[var(--color-brand-primary)]">
-          <span className="text-[18px] font-bold tracking-tight">◈ Ambient</span>
+        <a href="/" aria-label="Ambient home" className="flex items-center gap-2">
+          <span
+            className="text-[17px] font-bold tracking-tight select-none"
+            style={{ color: "var(--color-brand-primary)" }}
+          >
+            ◈ Ambient
+          </span>
         </a>
 
         {hasBothRoles ? (
-          <div className="relative">
-            <button
-              onClick={() => setPortalOpen((v) => !v)}
-              aria-haspopup="listbox"
-              aria-expanded={portalOpen}
-              className={cn(
-                "flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-md)] text-[13px] font-semibold",
-                "border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer",
-                "text-[var(--color-text-primary)]"
-              )}
-            >
-              {portalType === "advertiser" ? "Advertiser" : "Publisher"}
-              <ChevronDown size={14} aria-hidden="true" />
-            </button>
-            {portalOpen && (
-              <ul
-                role="listbox"
-                className="absolute top-full left-0 mt-1 w-36 bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-md)] shadow-md z-30"
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-md)] text-[13px] font-semibold",
+                  "border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer",
+                  "text-[var(--color-text-primary)]",
+                  "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]"
+                )}
+              >
+                {portalType === "advertiser" ? "Advertiser" : "Publisher"}
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                sideOffset={4}
+                align="start"
+                className={dropdownContent}
+                style={{ boxShadow: "var(--shadow-dropdown)" }}
               >
                 {(["advertiser", "publisher"] as const).map((t) => (
-                  <li key={t}>
-                    <button
-                      role="option"
-                      aria-selected={portalType === t}
-                      onClick={() => { onSwitchPortal?.(t); setPortalOpen(false); }}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-[13px] capitalize hover:bg-[var(--color-surface-hover)] cursor-pointer",
-                        portalType === t && "font-semibold text-[var(--color-brand-accent)]"
-                      )}
-                    >
-                      {t}
-                    </button>
-                  </li>
+                  <DropdownMenu.Item
+                    key={t}
+                    className={cn(
+                      dropdownItem,
+                      portalType === t
+                        ? "font-semibold text-[var(--color-brand-accent)]"
+                        : "text-[var(--color-text-primary)]"
+                    )}
+                    onSelect={() => onSwitchPortal?.(t)}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </DropdownMenu.Item>
                 ))}
-              </ul>
-            )}
-          </div>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         ) : (
           <span className="text-[13px] font-semibold text-[var(--color-text-secondary)] capitalize">
             {portalType}
@@ -94,45 +108,50 @@ export function TopBar({
           Support
         </a>
 
-        {/* Account dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setAccountOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={accountOpen}
-            className={cn(
-              "flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-md)] text-[13px] font-semibold",
-              "border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer",
-              "text-[var(--color-text-primary)]"
-            )}
-          >
-            {userName}
-            <ChevronDown size={14} aria-hidden="true" />
-          </button>
-          {accountOpen && (
-            <div
-              role="menu"
-              className="absolute top-full right-0 mt-1 w-44 bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-md)] shadow-md z-30"
+        {/* Account dropdown — Radix DropdownMenu for keyboard/ARIA */}
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button
+              className={cn(
+                "flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-md)] text-[13px] font-semibold",
+                "border border-[var(--color-border-default)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer",
+                "text-[var(--color-text-primary)]",
+                "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]"
+              )}
             >
-              <a
-                href={`/${portalType}/settings`}
-                role="menuitem"
-                className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-[var(--color-surface-hover)] cursor-pointer"
-                onClick={() => setAccountOpen(false)}
-              >
-                <Settings size={14} aria-hidden="true" /> Settings
-              </a>
-              <div className="border-t border-[var(--color-border-subtle)] my-1" />
-              <button
-                role="menuitem"
-                onClick={() => { onLogout?.(); setAccountOpen(false); }}
-                className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-[var(--color-status-error)] hover:bg-red-50 cursor-pointer"
+              {userName}
+              <ChevronDown size={14} aria-hidden="true" />
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              sideOffset={4}
+              align="end"
+              className={dropdownContent}
+              style={{ boxShadow: "var(--shadow-dropdown)", minWidth: "176px" }}
+            >
+              <DropdownMenu.Item asChild>
+                <a
+                  href={`/${portalType}/settings`}
+                  className={cn(dropdownItem, "text-[var(--color-text-primary)]")}
+                >
+                  <Settings size={14} aria-hidden="true" /> Settings
+                </a>
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator
+                className="my-1"
+                style={{ height: "1px", backgroundColor: "var(--color-border-subtle)" }}
+              />
+              <DropdownMenu.Item
+                className={cn(dropdownItem)}
+                style={{ color: "var(--color-status-error)" }}
+                onSelect={() => onLogout?.()}
               >
                 <LogOut size={14} aria-hidden="true" /> Log out
-              </button>
-            </div>
-          )}
-        </div>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </nav>
     </header>
   );

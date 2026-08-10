@@ -23,10 +23,14 @@ export function DataTable<T extends object>({
   className,
 }: DataTableProps<T>) {
   return (
-    <div className={cn("w-full overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border-default)]", className)}>
+    <div className={cn("w-full overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--color-border-default)]", className)}
+      style={{ boxShadow: "var(--shadow-card)" }}
+    >
       <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-[var(--color-surface-sidebar)]">
+        <thead className="sticky top-0 z-10">
+          <tr className="bg-[var(--color-surface-sidebar)] dark:bg-[var(--color-surface-card)]"
+            style={{ backgroundColor: "#F8F9FA" }}
+          >
             {columns.map((col) => (
               <th
                 key={String(col.key)}

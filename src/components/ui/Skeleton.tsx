@@ -18,7 +18,10 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] p-6 bg-[var(--color-surface-card)]">
+    <div
+      className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] p-6 bg-[var(--color-surface-card)]"
+      style={{ boxShadow: "var(--shadow-card)" }}
+    >
       <Skeleton className="h-8 w-28 mb-2" />
       <Skeleton className="h-3 w-20" />
     </div>

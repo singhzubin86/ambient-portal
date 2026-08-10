@@ -40,7 +40,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               "bg-[var(--color-surface-input)] text-[var(--color-text-primary)]",
               "placeholder:text-[var(--color-text-secondary)]",
               "border-[var(--color-border-default)]",
-              "focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-0",
+              "focus:border-[var(--color-border-focus)] focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)] focus:ring-offset-0",
               "disabled:bg-[var(--color-surface-hover)] disabled:text-[var(--color-text-disabled)] disabled:cursor-not-allowed",
               error && "border-[var(--color-border-error)]",
               className

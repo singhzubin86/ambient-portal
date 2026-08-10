@@ -12,9 +12,10 @@
     --color-brand-accent-hover: #4338CA;
 
     /* Surface */
-    --color-surface-page: #F8F9FA;
+    --color-surface-page: #F5F6FA;               /* richer base for card contrast */
     --color-surface-card: #FFFFFF;
-    --color-surface-sidebar: #F1F3F5;
+    --color-surface-sidebar: #1A1A2E;             /* brand navy — DS v1.1 */
+    --color-surface-sidebar-hover: rgba(255,255,255,0.08); /* hover on dark sidebar */
     --color-surface-ad: #F0F0FF;
     --color-surface-input: #FFFFFF;
     --color-surface-hover: #F3F4F6;
@@ -24,6 +25,8 @@
     --color-text-secondary: #6B7280;
     --color-text-disabled: #9CA3AF;
     --color-text-inverse: #FFFFFF;
+    --color-text-sidebar: rgba(255,255,255,0.70); /* muted nav items on dark sidebar */
+    --color-text-sidebar-active: #FFFFFF;         /* active nav item on dark sidebar */
     --color-disclosure-text: #6B6B6B;
 
     /* Border */
@@ -54,6 +57,11 @@
     --space-8: 32px;
     --space-10: 40px;
     --space-12: 48px;
+
+    /* Shadows */
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-topbar: 0 1px 0 var(--color-border-default);
+    --shadow-dropdown: 0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.06);
 
     /* Radius */
     --radius-sm: 4px;
@@ -96,9 +104,15 @@
   body {
     background-color: var(--color-surface-page);
     color: var(--color-text-primary);
-    font: var(--type-body-md);
+    /* Explicit properties — font: shorthand cannot reliably consume CSS custom property
+       values that contain quoted font names in all browsers. */
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01";
   }
 
   /* Focus ring — never remove without replacement */
@@ -106,4 +120,18 @@
     outline: 2px solid var(--color-border-focus);
     outline-offset: 2px;
   }
+
+  /* Typography utility classes — use explicit properties, not font: shorthand shorthand,
+     because CSS custom properties containing quoted font-family strings do not parse
+     correctly in all browsers when used inside the font: shorthand. */
+  .type-display      { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 28px; font-weight: 700; line-height: 1.2; }
+  .type-heading-lg   { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 22px; font-weight: 600; line-height: 1.3; }
+  .type-heading-md   { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 18px; font-weight: 600; line-height: 1.35; }
+  .type-heading-sm   { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; font-weight: 600; line-height: 1.4; }
+  .type-body-lg      { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; font-weight: 400; line-height: 1.5; }
+  .type-body-md      { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; font-weight: 400; line-height: 1.5; }
+  .type-body-sm      { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 400; line-height: 1.4; }
+  .type-label        { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; font-weight: 600; line-height: 1.3; }
+  .type-disclosure   { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 11px; font-weight: 600; line-height: 1.3; }
+  .type-mono         { font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 13px; font-weight: 400; line-height: 1.5; }
 }

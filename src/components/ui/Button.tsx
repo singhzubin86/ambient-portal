@@ -48,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] transition-colors cursor-pointer",
+          "inline-flex items-center justify-center gap-2 rounded-[var(--radius-lg)] transition-colors cursor-pointer",
           "min-h-[44px]", // WCAG touch target
           "disabled:opacity-50 disabled:cursor-not-allowed",
           variantClasses[variant],
