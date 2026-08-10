@@ -1,0 +1,38 @@
+# Dependencies — rebuilt in Docker from package.json
+node_modules
+npm-debug.log*
+
+# Next.js build output — rebuilt in Docker
+.next
+
+# Git history — not needed in image
+.git
+.gitignore
+
+# Dev/local config
+.env
+.env.local
+.env.development
+.env.test
+*.env.local
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+coverage
+__tests__
+*.test.ts
+*.spec.ts
+
+# Docs
+README.md
+AGENTS.md
+CLAUDE.md
