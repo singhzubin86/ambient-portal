@@ -4,8 +4,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
+# Using `npm install` rather than `npm ci`: the lockfile was generated on
+# a developer machine and may have minor resolution differences vs. the
+# builder's npm version. `npm install` resolves from package.json and
+# updates the lockfile in-place; `npm ci` would fail on any mismatch.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source and build
 COPY . .
