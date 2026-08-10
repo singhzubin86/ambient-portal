@@ -4,8 +4,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
+# npm install (not npm ci): lockfiles committed from developer machines
+# diverge from builder resolutions on transitive deps (e.g. valibot).
+# npm install resolves cleanly from package.json every time.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source and build
 COPY . .
