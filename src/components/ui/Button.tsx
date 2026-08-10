@@ -13,13 +13,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-[var(--color-brand-accent)] text-white hover:bg-[var(--color-brand-accent-hover)] active:bg-[#3730A3]",
+    "bg-[var(--color-brand-accent)] text-white hover:bg-[var(--color-brand-accent-hover)] active:bg-[var(--color-brand-primary)]",
   secondary:
     "border border-[var(--color-brand-accent)] text-[var(--color-brand-accent)] hover:bg-[var(--color-surface-hover)]",
   ghost:
     "text-[var(--color-brand-accent)] hover:bg-[var(--color-surface-hover)]",
   danger:
-    "bg-[var(--color-status-error)] text-white hover:bg-red-600 active:bg-red-700",
+    "bg-[var(--color-status-error)] text-white hover:bg-[var(--color-status-error)] active:bg-[var(--color-status-error)] opacity-100 hover:opacity-90 active:opacity-80",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -48,7 +48,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={isDisabled}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] transition-colors cursor-pointer",
+          "inline-flex items-center justify-center gap-2 rounded-[var(--radius-lg)] transition-colors cursor-pointer",
           "min-h-[44px]", // WCAG touch target
           "disabled:opacity-50 disabled:cursor-not-allowed",
           variantClasses[variant],

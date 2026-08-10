@@ -3,14 +3,39 @@ import { cn } from "@/lib/utils";
 
 export type BannerVariant = "info" | "warning" | "error" | "success";
 
+/*
+ * All color values reference CSS custom properties defined in globals.css.
+ * No raw hex values appear in this file — every decision traces to a named
+ * design-system token.
+ */
 const bannerConfig: Record<
   BannerVariant,
   { bg: string; border: string; text: string; icon: LucideIcon }
 > = {
-  info:    { bg: "bg-blue-50",   border: "border-blue-200",  text: "text-blue-800",  icon: Info },
-  warning: { bg: "bg-amber-50",  border: "border-amber-200", text: "text-amber-800", icon: AlertTriangle },
-  error:   { bg: "bg-red-50",    border: "border-red-200",   text: "text-red-800",   icon: XCircle },
-  success: { bg: "bg-green-50",  border: "border-green-200", text: "text-green-800", icon: CheckCircle },
+  info: {
+    bg:     "var(--color-status-info-bg)",
+    border: "var(--color-status-info-border)",
+    text:   "var(--color-status-info-text)",
+    icon: Info,
+  },
+  warning: {
+    bg:     "var(--color-status-warning-bg)",
+    border: "var(--color-status-warning-border)",
+    text:   "var(--color-status-warning-text)",
+    icon: AlertTriangle,
+  },
+  error: {
+    bg:     "var(--color-status-error-bg)",
+    border: "var(--color-status-error-border)",
+    text:   "var(--color-status-error-text)",
+    icon: XCircle,
+  },
+  success: {
+    bg:     "var(--color-status-active-bg)",
+    border: "var(--color-status-active-border)",
+    text:   "var(--color-status-active-text)",
+    icon: CheckCircle,
+  },
 };
 
 interface BannerProps {
@@ -29,11 +54,13 @@ export function Banner({ variant, message, action, className }: BannerProps) {
       role="alert"
       className={cn(
         "flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] border text-[13px] font-medium w-full",
-        config.bg,
-        config.border,
-        config.text,
         className
       )}
+      style={{
+        backgroundColor: config.bg,
+        borderColor: config.border,
+        color: config.text,
+      }}
     >
       <Icon size={16} aria-hidden="true" className="shrink-0" />
       <span className="flex-1">{message}</span>

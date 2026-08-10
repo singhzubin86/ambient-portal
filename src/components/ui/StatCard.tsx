@@ -14,6 +14,7 @@ export function StatCard({ label, value, className }: StatCardProps) {
         "bg-[var(--color-surface-card)]",
         className
       )}
+      style={{ boxShadow: "var(--shadow-card)" }}
     >
       <p
         className="text-[28px] font-bold leading-tight text-[var(--color-text-primary)]"

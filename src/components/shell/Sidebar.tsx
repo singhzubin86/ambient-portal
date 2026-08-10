@@ -37,10 +37,11 @@ export function Sidebar({ portalType }: SidebarProps) {
   return (
     <aside
       aria-label={`${portalType} navigation`}
-      className="w-56 shrink-0 bg-[var(--color-surface-sidebar)] flex flex-col pt-4 pb-6 border-r border-transparent"
+      className="w-56 shrink-0 flex flex-col pt-4 pb-6"
+      style={{ backgroundColor: "var(--color-surface-sidebar)" }}
     >
       <nav>
-        <ul role="list" className="space-y-0.5 px-2">
+        <ul role="list" className="space-y-0.5 px-3">
           {items.map((item) => {
             const active = pathname.startsWith(item.href);
             const Icon = item.icon;
@@ -50,13 +51,18 @@ export function Sidebar({ portalType }: SidebarProps) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 h-10 px-4 rounded-[var(--radius-md)] text-[13px] transition-colors",
+                    "flex items-center gap-3 h-10 px-3 rounded-[var(--radius-md)] text-[13px] font-medium transition-colors",
                     active
-                      ? "border-l-[3px] border-[var(--color-brand-accent)] text-[var(--color-brand-accent)] bg-[var(--color-surface-card)] font-semibold pl-[13px]"
-                      : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                      ? "bg-[var(--color-brand-accent)] text-white font-semibold"
+                      : "hover:bg-[var(--color-surface-sidebar-hover)]"
                   )}
+                  style={
+                    active
+                      ? undefined
+                      : { color: "var(--color-text-sidebar)" }
+                  }
                 >
-                  <Icon size={16} aria-hidden="true" />
+                  <Icon size={16} aria-hidden="true" className={active ? "text-white" : ""} />
                   {item.label}
                 </Link>
               </li>
