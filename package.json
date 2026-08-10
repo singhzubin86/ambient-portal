@@ -28,6 +28,7 @@
     "@storybook/addon-mcp": "latest",
     "@storybook/addon-vitest": "^10.5.7",
     "@storybook/nextjs-vite": "^10.5.7",
+    "@storybook/react": "^10.5.7",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
