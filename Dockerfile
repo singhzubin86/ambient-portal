@@ -4,12 +4,8 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
-# Use `npm install` (not `npm ci`) because package-lock.json is out of
-# sync with package.json after the chromatic pin — npm ci requires exact
-# lockfile match. --legacy-peer-deps handles the mixed Storybook v8/v10
-# peer requirements in devDependencies (dev-only, no production impact).
 COPY package.json package-lock.json ./
-RUN npm install --legacy-peer-deps
+RUN npm ci
 
 # Copy source and build
 COPY . .
