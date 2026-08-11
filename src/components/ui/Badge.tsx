@@ -8,7 +8,8 @@ export type BadgeVariant =
   | "rejected"
   | "degraded"
   | "no-signal"
-  | "pending";
+  | "pending"
+  | "pending_review";
 
 /*
  * All color values use CSS custom property references so every decision
@@ -32,7 +33,8 @@ const badgeConfig: Record<BadgeVariant, BadgeConfig> = {
   rejected:   { dotToken: "--color-status-error",    bgToken: "--color-status-error-bg",    textToken: "--color-status-error-text",    label: "Rejected" },
   degraded:   { dotToken: "--color-status-warning",  bgToken: "--color-status-warning-bg",  textToken: "--color-status-warning-text",  label: "Degraded" },
   "no-signal":{ dotToken: "--color-status-error",    bgToken: "--color-status-error-bg",    textToken: "--color-status-error-text",    label: "No signal" },
-  pending:    { dotToken: "--color-status-neutral",  bgToken: "--color-border-subtle",      textToken: "--color-text-primary",         label: "Pending review" },
+  pending:         { dotToken: "--color-status-neutral",  bgToken: "--color-border-subtle",      textToken: "--color-text-primary",         label: "Pending review" },
+  pending_review:  { dotToken: "--color-status-neutral",  bgToken: "--color-border-subtle",      textToken: "--color-text-primary",         label: "Pending review" },
 };
 
 interface BadgeProps {
