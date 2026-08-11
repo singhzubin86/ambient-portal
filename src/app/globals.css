@@ -100,19 +100,7 @@
     --type-mono: 400 13px/1.5 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   }
 
-  /* Dark mode tokens (v1 optional — defined, not wired to switcher UI) */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-surface-page: #0F0F1A;
-      --color-surface-card: #1A1A2E;
-      --color-surface-ad: #1E1E3A;
-      --color-text-primary: #F9FAFB;
-      --color-text-secondary: #9CA3AF;
-      --color-disclosure-text: #A0A0A0;
-      --color-border-default: #374151;
-      --color-surface-sidebar: #111827;
-    }
-  }
+  /* Dark mode intentionally disabled — portal always renders in light theme */
 
   * {
     box-sizing: border-box;
