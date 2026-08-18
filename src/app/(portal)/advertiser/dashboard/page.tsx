@@ -135,7 +135,7 @@ export default function AdvertiserDashboard() {
   const sectionLabel = "text-[11px] font-semibold uppercase tracking-[0.07em] text-[var(--color-text-secondary)] mb-3";
 
   return (
-    <PortalLayout portalType="advertiser" userName="Alex">
+    <PortalLayout portalType="advertiser" >
       <div className="space-y-8">
         {/* Page header */}
         <div className="flex items-start justify-between">

@@ -68,7 +68,7 @@ function CampaignsContent() {
 
 export default function CampaignsPage() {
   return (
-    <PortalLayout portalType="advertiser" userName="Alex">
+    <PortalLayout portalType="advertiser" >
       <Suspense fallback={<div className="text-[13px] text-[var(--color-text-secondary)]">Loading…</div>}>
         <CampaignsContent />
       </Suspense>

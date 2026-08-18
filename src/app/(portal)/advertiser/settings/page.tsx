@@ -3,7 +3,7 @@ import { PortalLayout } from "@/components/shell/PortalLayout";
 import { Input, Button } from "@/components/ui";
 export default function AdvertiserSettingsPage() {
   return (
-    <PortalLayout portalType="advertiser" userName="Alex">
+    <PortalLayout portalType="advertiser" >
       <div className="max-w-[480px] space-y-6">
         <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Settings</h1>
         <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-lg)] p-6 space-y-4">

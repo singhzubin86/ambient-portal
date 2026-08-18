@@ -45,7 +45,7 @@ export default function CampaignDetailPage() {
   const isRejected = status === "rejected";
 
   return (
-    <PortalLayout portalType="advertiser" userName="Alex">
+    <PortalLayout portalType="advertiser" >
       <div className="space-y-8 max-w-[860px]">
         {/* Breadcrumb */}
         <p className="text-[12px] text-[var(--color-text-secondary)]">

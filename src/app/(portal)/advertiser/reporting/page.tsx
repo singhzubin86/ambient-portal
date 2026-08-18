@@ -124,7 +124,7 @@ export default function AdvertiserReportingPage() {
   const totalSpendUsd = (data?.total_spend_cents ?? 0) / 100;
 
   return (
-    <PortalLayout portalType="advertiser" userName="Alex">
+    <PortalLayout portalType="advertiser" >
       <div className="space-y-8">
 
         {/* Header */}

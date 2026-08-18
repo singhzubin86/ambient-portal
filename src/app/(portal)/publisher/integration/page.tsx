@@ -44,7 +44,7 @@ export default function PublisherIntegrationPage() {
   }
 
   return (
-    <PortalLayout portalType="publisher" userName="Sam">
+    <PortalLayout portalType="publisher" >
       <div className="max-w-[680px] space-y-8">
         <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Integration</h1>
 
