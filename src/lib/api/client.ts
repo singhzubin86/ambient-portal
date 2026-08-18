@@ -1,17 +1,34 @@
 /**
  * Ambient Portal API Client
  * Thin wrapper over Core's REST endpoints.
- * Base URL pulled from env — falls back to localhost for dev.
- * All methods throw on non-2xx; callers handle errors.
+ *
+ * Auth model: HttpOnly cookie sessions (portal auth).
+ * credentials: "include" is set on every request so the browser
+ * forwards the ambient_portal_session cookie automatically.
+ * No Bearer tokens in this layer — portal auth is cookie-only.
+ *
+ * Base URL pulled from env — falls back to localhost:8080 for dev.
  */
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
-async function request<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
+// ── Core fetch wrapper ────────────────────────────────────────────────────────
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+    public readonly errors?: Record<string, string>
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
+    credentials: "include",       // always send the session cookie
     headers: {
       "Content-Type": "application/json",
       ...(options?.headers ?? {}),
@@ -19,52 +36,217 @@ async function request<T>(
     ...options,
   });
 
+  if (res.status === 204) return undefined as T;
+
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${body}`);
+    let body: { error?: string; message?: string; errors?: Record<string, string> } = {};
+    try { body = await res.json(); } catch { /* non-JSON error body */ }
+    throw new ApiError(
+      res.status,
+      body.error ?? "UNKNOWN_ERROR",
+      body.message ?? `API error ${res.status}`,
+      body.errors
+    );
   }
 
-  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
-// ---------------------------------------------------------------
-// Auth
-// ---------------------------------------------------------------
+// ── Portal Auth ───────────────────────────────────────────────────────────────
+
+export type PortalRole = "publisher" | "advertiser" | "both";
+
 export interface SignupPayload {
   full_name: string;
   email: string;
   company_name: string;
   password: string;
-  roles: ("advertiser" | "publisher")[];
+  role: PortalRole;
 }
 
-export interface LoginPayload { email: string; password: string; }
-export interface AuthResponse { token: string; user_id: string; roles: string[]; }
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
 
-export const auth = {
+export interface SignupResponse {
+  user_id: string;
+  email: string;
+  role: PortalRole;
+  status: string;
+}
+
+export interface LoginResponse {
+  user_id: string;
+  email: string;
+  full_name: string;
+  company_name: string;
+  role: PortalRole;
+}
+
+export interface MeResponse {
+  user_id: string;
+  email: string;
+  full_name: string;
+  company_name: string;
+  role: PortalRole;
+  verified: boolean;
+}
+
+export const portalAuth = {
+  /** POST /v1/portal/auth/signup — creates account + sends verification email */
   signup: (p: SignupPayload) =>
-    request<AuthResponse>("/v1/auth/signup", { method: "POST", body: JSON.stringify(p) }),
+    request<SignupResponse>("/v1/portal/auth/signup", {
+      method: "POST",
+      body: JSON.stringify(p),
+    }),
+
+  /** POST /v1/portal/auth/login — sets HttpOnly session cookie on success */
   login: (p: LoginPayload) =>
-    request<AuthResponse>("/v1/auth/login", { method: "POST", body: JSON.stringify(p) }),
-  verifyEmail: (token: string) =>
-    request<void>(`/v1/auth/verify-email?token=${token}`, { method: "POST" }),
+    request<LoginResponse>("/v1/portal/auth/login", {
+      method: "POST",
+      body: JSON.stringify(p),
+    }),
+
+  /** GET /v1/portal/auth/me — returns current session user (uses cookie) */
+  me: () => request<MeResponse>("/v1/portal/auth/me"),
+
+  /** POST /v1/portal/auth/logout — invalidates session cookie */
+  logout: () =>
+    request<void>("/v1/portal/auth/logout", { method: "POST" }),
+
+  /** POST /v1/portal/auth/resend-verification — always 204 (anti-enumeration) */
+  resendVerification: (email: string) =>
+    request<void>("/v1/portal/auth/resend-verification", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
 };
 
-// ---------------------------------------------------------------
-// Campaigns
-// ---------------------------------------------------------------
+// ── Portal Publishers ─────────────────────────────────────────────────────────
+
+export type AppCategory =
+  | "custom_gpt"
+  | "standalone_chatbot"
+  | "voice_ai"
+  | "rag_app"
+  | "other";
+
+export type MauRange = "lt1k" | "1k_10k" | "10k_100k" | "100k_plus";
+export type IntegrationType = "standalone_web_chatbot" | "other";
+
+export interface OnboardPayload {
+  app_name: string;
+  app_url: string;
+  app_category: AppCategory;
+  mau_range: MauRange;
+  integration_type: IntegrationType;
+}
+
+export interface PublisherRecord {
+  publisher_id: string;
+  name: string;
+  contact_email: string;
+  api_key_prefix: string;
+  api_key_masked?: string; // only on GET /me
+  api_key?: string;        // only on POST (shown once)
+  status: "active" | "suspended";
+  app_name: string;
+  app_url: string;
+  app_category: AppCategory;
+  mau_range: MauRange;
+  integration_type: IntegrationType;
+  cpm_usd: number;
+  created_at: string;
+}
+
+export const portalPublishers = {
+  /** POST /v1/publishers — onboard + provision API key (shown once) */
+  create: (p: OnboardPayload) =>
+    request<PublisherRecord>("/v1/publishers", {
+      method: "POST",
+      body: JSON.stringify(p),
+    }),
+
+  /** GET /v1/publishers/me — returns masked key, not the full key */
+  me: () => request<PublisherRecord>("/v1/publishers/me"),
+
+  /** POST /v1/publishers/me/regenerate-key — rotates key, returns new full key once */
+  regenerateKey: () =>
+    request<{ publisher_id: string; api_key: string; api_key_prefix: string }>(
+      "/v1/publishers/me/regenerate-key",
+      { method: "POST" }
+    ),
+};
+
+// ── Portal Reporting ──────────────────────────────────────────────────────────
+
+export interface StatRow {
+  date: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  spend_usd: number;
+}
+
+export interface StatsResponse {
+  publisher_id: string;
+  start_date: string;
+  end_date: string;
+  summary: {
+    total_impressions: number;
+    total_clicks: number;
+    overall_ctr: number;
+    total_spend_usd: number;
+  };
+  rows: StatRow[];
+}
+
+export interface IntegrationStatusResponse {
+  publisher_id: string;
+  integration_status: "live" | "no_signal" | "not_integrated";
+  checked_at: string;
+}
+
+export const portalReporting = {
+  /** GET /v1/portal/publishers/me/stats */
+  stats: (params?: { start_date?: string; end_date?: string }) => {
+    const qs = params ? new URLSearchParams(params as Record<string, string>).toString() : "";
+    return request<StatsResponse>(
+      `/v1/portal/publishers/me/stats${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  /** GET /v1/portal/publishers/me/integration-status */
+  integrationStatus: () =>
+    request<IntegrationStatusResponse>("/v1/portal/publishers/me/integration-status"),
+};
+
+// ── Campaigns (advertiser — Bearer-based, separate auth path) ─────────────────
+// NOTE: advertiser auth is still using the old admin-provisioned token path.
+// This section is kept for backward compat with existing advertiser pages.
+// Will migrate to portal-auth cookie sessions in a future PR.
+
 import type { Campaign, CampaignStats, ReportRow } from "@/types";
 
-export type CreateCampaignPayload = Omit<Campaign, "id" | "status" | "created_at" | "updated_at" | "rejection_reason">;
-export type UpdateCampaignPayload = Partial<CreateCampaignPayload> & { status?: "paused" | "active" };
+export type CreateCampaignPayload = Omit<
+  Campaign,
+  "id" | "status" | "created_at" | "updated_at" | "rejection_reason"
+>;
+export type UpdateCampaignPayload = Partial<CreateCampaignPayload> & {
+  status?: "paused" | "active";
+};
 
 export const campaigns = {
   list: (token: string) =>
-    request<Campaign[]>("/v1/campaigns", { headers: { Authorization: `Bearer ${token}` } }),
+    request<Campaign[]>("/v1/campaigns", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 
   get: (token: string, id: string) =>
-    request<Campaign>(`/v1/campaigns/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+    request<Campaign>(`/v1/campaigns/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 
   create: (token: string, p: CreateCampaignPayload) =>
     request<Campaign>("/v1/campaigns", {
@@ -87,55 +269,18 @@ export const campaigns = {
     }),
 
   stats: (token: string, id: string, dateRange?: string) =>
-    request<CampaignStats>(`/v1/campaigns/${id}/stats${dateRange ? `?range=${dateRange}` : ""}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
+    request<CampaignStats>(
+      `/v1/campaigns/${id}/stats${dateRange ? `?range=${dateRange}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ),
 
   report: (token: string, params?: { campaign_id?: string; range?: string }) => {
-    const qs = new URLSearchParams(params as Record<string, string>).toString();
-    return request<ReportRow[]>(`/v1/reporting/advertiser${qs ? `?${qs}` : ""}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const qs = new URLSearchParams(
+      params as Record<string, string>
+    ).toString();
+    return request<ReportRow[]>(
+      `/v1/reporting/advertiser${qs ? `?${qs}` : ""}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
   },
-};
-
-// ---------------------------------------------------------------
-// Publishers
-// ---------------------------------------------------------------
-import type { Publisher, PublisherStats } from "@/types";
-
-export interface CreatePublisherPayload {
-  app_name: string;
-  app_url: string;
-  app_category: string;
-  integration_type: "gpt_store_custom_gpt" | "standalone_web_chatbot" | "other";
-  monthly_active_users_range: string;
-}
-
-export const publishers = {
-  get: (token: string) =>
-    request<Publisher>("/v1/publishers/me", { headers: { Authorization: `Bearer ${token}` } }),
-
-  create: (token: string, p: CreatePublisherPayload) =>
-    request<{ publisher: Publisher; api_key: string }>("/v1/publishers", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(p),
-    }),
-
-  regenerateKey: (token: string) =>
-    request<{ api_key: string }>("/v1/publishers/me/regenerate-key", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  stats: (token: string, range?: string) =>
-    request<PublisherStats>(`/v1/reporting/publisher${range ? `?range=${range}` : ""}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
-
-  report: (token: string, range?: string) =>
-    request<import("@/types").ReportRow[]>(`/v1/reporting/publisher/daily${range ? `?range=${range}` : ""}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }),
 };

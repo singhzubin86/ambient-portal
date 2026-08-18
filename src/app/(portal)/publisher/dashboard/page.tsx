@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
@@ -9,10 +10,12 @@ import { PortalLayout } from "@/components/shell/PortalLayout";
 import { KpiCard } from "@/components/charts/KpiCard";
 import { ChartCard } from "@/components/charts/ChartCard";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
+import { portalReporting, portalPublishers, ApiError } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth/useAuth";
 import type { IntegrationStatus } from "@/types";
 
 // ── Demo data ─────────────────────────────────────────────────────────────────
-const DEMO_STATUS: IntegrationStatus = "live";
+// KPI strip still demo — will be replaced with real reporting API data post-auth MVP
 const DEMO_STATS = { impressions: 48200, clicks: 867, fill_rate: 0.71, earnings_usd: 57.84 };
 
 // Funnel data
@@ -54,7 +57,30 @@ const STATUS_CONFIG: Record<IntegrationStatus, { label: string; border: string; 
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function PublisherDashboard() {
-  const statusCfg = STATUS_CONFIG[DEMO_STATUS];
+  const { user } = useAuth();
+  const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus>("not_integrated");
+  const [hasPublisher, setHasPublisher] = useState(true);
+
+  useEffect(() => {
+    // Check if publisher has completed onboarding + get real integration status
+    portalPublishers.me()
+      .then(() => {
+        return portalReporting.integrationStatus();
+      })
+      .then((res) => {
+        setIntegrationStatus(res.integration_status as IntegrationStatus);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof ApiError && err.status === 404) {
+          // Publisher hasn't onboarded yet
+          setHasPublisher(false);
+          setIntegrationStatus("not_integrated");
+        }
+        // On network errors just keep "not_integrated" — don't block the dashboard
+      });
+  }, []);
+
+  const statusCfg = STATUS_CONFIG[integrationStatus] ?? STATUS_CONFIG["not_integrated"];
   const sectionLabel = "text-[11px] font-semibold uppercase tracking-[0.07em] text-[var(--color-text-secondary)] mb-3";
 
   const trendTotal = TREND_DATA.reduce((s, d) => s + d.earnings, 0);
@@ -62,13 +88,13 @@ export default function PublisherDashboard() {
   const trendBest = Math.max(...TREND_DATA.map((d) => d.earnings));
 
   return (
-    <PortalLayout portalType="publisher" userName="Sam">
+    <PortalLayout portalType="publisher" >
       <div className="space-y-8">
 
         {/* Page header */}
         <div>
           <h1 className="text-[22px] font-bold text-[var(--color-text-primary)] tracking-tight">
-            Good morning, Sam.
+            Good morning, {user?.full_name?.split(" ")[0] ?? "there"}.
           </h1>
           <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
             Your AI assistant is live and earning.
@@ -76,59 +102,66 @@ export default function PublisherDashboard() {
         </div>
 
         {/* Integration health — elevated, always at top */}
-        <div
-          className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-xl)] px-5 py-4 flex items-center justify-between"
-          style={{ boxShadow: "var(--shadow-card)", borderLeft: `4px solid ${statusCfg.border}` }}
-          role="status"
-          aria-label="Integration status"
-        >
-          <div className="flex items-center gap-4">
-            <div
-              className="w-10 h-10 rounded-[var(--radius-lg)] flex items-center justify-center flex-shrink-0"
-              style={{ background: statusCfg.bg }}
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                {DEMO_STATUS === "live" ? (
-                  <path d="M5 10l4 4 6-7" stroke={statusCfg.border} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                ) : (
-                  <path d="M10 6v4M10 14h.01" stroke={statusCfg.border} strokeWidth="2" strokeLinecap="round"/>
-                )}
-              </svg>
-            </div>
+        {!hasPublisher ? (
+          <div
+            className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-xl)] px-5 py-4 flex items-center justify-between"
+            style={{ boxShadow: "var(--shadow-card)", borderLeft: "4px solid var(--color-brand-accent)" }}
+          >
             <div>
-              <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">Integration status</div>
+              <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">Complete your setup</div>
               <div className="text-[12px] text-[var(--color-text-secondary)] mt-0.5">
-                SDK sending events · last call 2 min ago
+                Finish onboarding to start serving ads and earning.
               </div>
             </div>
-            <span
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
-              style={{ background: statusCfg.bg, color: statusCfg.text }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusCfg.dot }} />
-              {statusCfg.label}
-            </span>
+            <Link href="/publisher/onboarding" className="text-[12px] font-semibold text-[var(--color-brand-accent)] hover:underline">
+              Complete setup →
+            </Link>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <div className="text-[16px] font-bold text-[var(--color-text-primary)]">99.8%</div>
-              <div className="text-[11px] text-[var(--color-text-secondary)]">Uptime (30d)</div>
-            </div>
-            <div className="text-center">
-              <div className="text-[16px] font-bold text-[var(--color-text-primary)]">142ms</div>
-              <div className="text-[11px] text-[var(--color-text-secondary)]">Avg latency</div>
-            </div>
-            <div className="text-center">
-              <div className="text-[16px] font-bold text-[var(--color-text-primary)]">{formatNumber(48200)}</div>
-              <div className="text-[11px] text-[var(--color-text-secondary)]">Events today</div>
+        ) : (
+          <div
+            className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-xl)] px-5 py-4 flex items-center justify-between"
+            style={{ boxShadow: "var(--shadow-card)", borderLeft: `4px solid ${statusCfg.border}` }}
+            role="status"
+            aria-label="Integration status"
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className="w-10 h-10 rounded-[var(--radius-lg)] flex items-center justify-center flex-shrink-0"
+                style={{ background: statusCfg.bg }}
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  {integrationStatus === "live" ? (
+                    <path d="M5 10l4 4 6-7" stroke={statusCfg.border} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  ) : (
+                    <path d="M10 6v4M10 14h.01" stroke={statusCfg.border} strokeWidth="2" strokeLinecap="round"/>
+                  )}
+                </svg>
+              </div>
+              <div>
+                <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">Integration status</div>
+                <div className="text-[12px] text-[var(--color-text-secondary)] mt-0.5">
+                  {integrationStatus === "live"
+                    ? "SDK sending events"
+                    : integrationStatus === "no_signal"
+                    ? "No signal in the last 48h — check your integration"
+                    : "No events received yet — install the SDK to get started"}
+                </div>
+              </div>
+              <span
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold"
+                style={{ background: statusCfg.bg, color: statusCfg.text }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusCfg.dot }} />
+                {statusCfg.label}
+              </span>
             </div>
             <div className="pl-4 border-l border-[var(--color-border-default)]">
               <Link href="/publisher/integration" className="text-[12px] text-[var(--color-brand-accent)] hover:underline">
-                View logs →
+                View integration guide →
               </Link>
             </div>
           </div>
-        </div>
+        )}
 
         {/* KPI strip */}
         <div className="grid grid-cols-4 gap-4">

@@ -150,7 +150,7 @@ export default function NewCampaignPage() {
   const estimatedImpressions = estimateImpressions(budget, cpm);
 
   return (
-    <PortalLayout portalType="advertiser" userName="Alex">
+    <PortalLayout portalType="advertiser" >
       <div className="max-w-[640px]">
         {/* Breadcrumb */}
         <p className="text-[12px] text-[var(--color-text-secondary)] mb-4">
