@@ -3,9 +3,20 @@
  * Thin wrapper over Core's REST endpoints.
  *
  * Auth model: HttpOnly cookie sessions (portal auth).
- * credentials: "include" is set on every request so the browser
- * forwards the ambient_portal_session cookie automatically.
- * No Bearer tokens in this layer — portal auth is cookie-only.
+ *
+ * IMPORTANT — same-origin proxy pattern:
+ *   The session cookie is set on the PORTAL domain (ambient-portal.fly.dev)
+ *   by /api/auth/login. Browsers cannot send that cookie to the API domain
+ *   (ambient-api.fly.dev). Therefore auth-sensitive calls (me, logout) go
+ *   through same-origin Next.js route handlers that read the cookie
+ *   server-side and forward it as a Bearer token to the API.
+ *
+ *   /api/auth/me    → GET  /v1/portal/auth/me
+ *   /api/auth/logout → POST /v1/portal/auth/logout
+ *   /api/auth/login  → POST /v1/portal/auth/login
+ *
+ *   All other calls (publishers, reporting) use credentials:"include" with
+ *   BASE_URL — those endpoints also need proxying if they return 401 in prod.
  *
  * Base URL pulled from env — falls back to localhost:8080 for dev.
  */
@@ -29,6 +40,38 @@ export class ApiError extends Error {
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     credentials: "include",       // always send the session cookie
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
+    ...options,
+  });
+
+  if (res.status === 204) return undefined as T;
+
+  if (!res.ok) {
+    let body: { error?: string; message?: string; errors?: Record<string, string> } = {};
+    try { body = await res.json(); } catch { /* non-JSON error body */ }
+    throw new ApiError(
+      res.status,
+      body.error ?? "UNKNOWN_ERROR",
+      body.message ?? `API error ${res.status}`,
+      body.errors
+    );
+  }
+
+  return res.json() as Promise<T>;
+}
+
+/**
+ * Same-origin request to portal-local Next.js route handlers (/api/auth/*).
+ * Does NOT prefix with BASE_URL — path must be a relative /api/... path.
+ * Used for auth calls that must go through the portal domain so the
+ * HttpOnly cookie is accessible server-side.
+ */
+async function portalRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
       ...(options?.headers ?? {}),
@@ -101,19 +144,31 @@ export const portalAuth = {
       body: JSON.stringify(p),
     }),
 
-  /** POST /v1/portal/auth/login — sets HttpOnly session cookie on success */
+  /**
+   * POST /api/auth/login — same-origin portal proxy (NOT direct to API).
+   * The portal route handler calls the API, extracts the JWT, and sets the
+   * cookie on the portal domain where middleware can read it.
+   */
   login: (p: LoginPayload) =>
-    request<LoginResponse>("/v1/portal/auth/login", {
+    portalRequest<LoginResponse>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(p),
     }),
 
-  /** GET /v1/portal/auth/me — returns current session user (uses cookie) */
-  me: () => request<MeResponse>("/v1/portal/auth/me"),
+  /**
+   * GET /api/auth/me — same-origin portal proxy (NOT direct to API).
+   * The portal route handler reads the cookie server-side and proxies
+   * it to the API as a Bearer token. Cross-origin fetch can't send
+   * the portal cookie to the API domain.
+   */
+  me: () => portalRequest<MeResponse>("/api/auth/me"),
 
-  /** POST /v1/portal/auth/logout — invalidates session cookie */
+  /**
+   * POST /api/auth/logout — same-origin portal proxy (NOT direct to API).
+   * Clears the cookie on the portal domain and notifies the API.
+   */
   logout: () =>
-    request<void>("/v1/portal/auth/logout", { method: "POST" }),
+    portalRequest<void>("/api/auth/logout", { method: "POST" }),
 
   /** POST /v1/portal/auth/resend-verification — always 204 (anti-enumeration) */
   resendVerification: (email: string) =>
