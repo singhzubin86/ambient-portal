@@ -1,22 +1,24 @@
 /**
- * /verify-email — handles two scenarios:
+ * /verify-email — handles email verification token flow.
  *
- * 1. API redirects here after successful verification: /verify-email
- *    (no query params) → should not happen; Core redirects to /login?verified=true
+ * When a `token` query param is present (user clicked the link from email),
+ * this page forwards the token to the API: GET /v1/portal/auth/verify-email?token=...
+ * The API sets verified=true and redirects to /login?verified=true on success,
+ * or back to /verify-email?error=<code> on failure.
  *
- * 2. API redirects here on error:
- *    /verify-email?error=missing  — token param absent
- *    /verify-email?error=invalid  — token already used or not found
- *    /verify-email?error=expired  — token past 24h window
+ * When an `error` query param is present (API redirected back after failure):
+ *   /verify-email?error=missing  — token param absent
+ *   /verify-email?error=invalid  — token already used or not found
+ *   /verify-email?error=expired  — token past 24h window
  *
- * The verify-email GET endpoint on Core does a server-side redirect
- * (302 → /login?verified=true on success, or /verify-email?error=X on failure).
- * So this page only renders error states; successful verification lands on /login.
+ * No params: user landed here directly — show "check your inbox" message.
  */
 "use client";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui";
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 const ERROR_MESSAGES: Record<string, { title: string; body: string }> = {
   missing: {
@@ -35,38 +37,57 @@ const ERROR_MESSAGES: Record<string, { title: string; body: string }> = {
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
+  const token = searchParams.get("token");
   const errorCode = searchParams.get("error") ?? "";
   const errorInfo = ERROR_MESSAGES[errorCode];
 
-  // No error param — user landed here directly; redirect to signup
-  if (!errorCode) {
+  // Token present — forward to API which will redirect to /login?verified=true or back here with ?error=
+  useEffect(() => {
+    if (token) {
+      window.location.href = `${BASE_URL}/v1/portal/auth/verify-email?token=${encodeURIComponent(token)}`;
+    }
+  }, [token]);
+
+  if (token) {
     return (
       <div className="w-full max-w-sm text-center space-y-4">
-        <div className="text-[40px]">📬</div>
-        <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Verify your email</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Click the link in your verification email to activate your account.
-        </p>
-        <Button variant="secondary" onClick={() => { window.location.href = "/login"; }}>
-          Go to login
-        </Button>
+        <div className="text-[40px]">⏳</div>
+        <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Verifying your email…</h1>
+        <p className="text-[13px] text-[var(--color-text-secondary)]">Just a moment.</p>
       </div>
     );
   }
 
+  // Error from API redirect
+  if (errorCode) {
+    return (
+      <div className="w-full max-w-sm text-center space-y-4">
+        <div className="text-[40px]">⚠️</div>
+        <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">
+          {errorInfo?.title ?? "Verification failed"}
+        </h1>
+        <p className="text-[13px] text-[var(--color-text-secondary)]">
+          {errorInfo?.body ?? "Something went wrong. Please try again."}
+        </p>
+        <div className="flex gap-3 justify-center pt-2">
+          <Button onClick={() => { window.location.href = "/signup"; }}>Sign up again</Button>
+          <Button variant="secondary" onClick={() => { window.location.href = "/login"; }}>Log in</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // No params — user landed here directly
   return (
     <div className="w-full max-w-sm text-center space-y-4">
-      <div className="text-[40px]">⚠️</div>
-      <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">
-        {errorInfo?.title ?? "Verification failed"}
-      </h1>
+      <div className="text-[40px]">📬</div>
+      <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">Verify your email</h1>
       <p className="text-[13px] text-[var(--color-text-secondary)]">
-        {errorInfo?.body ?? "Something went wrong. Please try again."}
+        Click the link in your verification email to activate your account.
       </p>
-      <div className="flex gap-3 justify-center pt-2">
-        <Button onClick={() => { window.location.href = "/signup"; }}>Sign up again</Button>
-        <Button variant="secondary" onClick={() => { window.location.href = "/login"; }}>Log in</Button>
-      </div>
+      <Button variant="secondary" onClick={() => { window.location.href = "/login"; }}>
+        Go to login
+      </Button>
     </div>
   );
 }
