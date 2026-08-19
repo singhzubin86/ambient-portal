@@ -1,0 +1,36 @@
+/**
+ * POST /api/publishers/me/regenerate-key — same-origin proxy
+ *
+ * Forwards to POST /v1/publishers/me/regenerate-key on the API.
+ * Returns the new API key (shown once). Old key is immediately invalidated.
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+const PORTAL_COOKIE_NAME = "ambient_portal_session";
+const API_COOKIE_NAME = "__Host-amb-portal";
+
+export async function POST(req: NextRequest) {
+  const token = req.cookies.get(PORTAL_COOKIE_NAME)?.value;
+  if (!token) {
+    return NextResponse.json(
+      { error: "UNAUTHORIZED", message: "No session" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const apiRes = await fetch(`${API_URL}/v1/publishers/me/regenerate-key`, {
+      method: "POST",
+      headers: { Cookie: `${API_COOKIE_NAME}=${token}` },
+    });
+    const data = await apiRes.json();
+    return NextResponse.json(data, { status: apiRes.status });
+  } catch {
+    return NextResponse.json(
+      { error: "INTERNAL_ERROR", message: "Key regeneration failed" },
+      { status: 500 }
+    );
+  }
+}

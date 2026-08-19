@@ -9,14 +9,16 @@ import {
 import { PortalLayout } from "@/components/shell/PortalLayout";
 import { KpiCard } from "@/components/charts/KpiCard";
 import { ChartCard } from "@/components/charts/ChartCard";
+import { Skeleton } from "@/components/ui";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
 import { portalReporting, portalPublishers, ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/useAuth";
 import type { IntegrationStatus } from "@/types";
 
-// ── Demo data ─────────────────────────────────────────────────────────────────
-// KPI strip still demo — will be replaced with real reporting API data post-auth MVP
-const DEMO_STATS = { impressions: 48200, clicks: 867, fill_rate: 0.71, earnings_usd: 57.84 };
+// ── Demo data (charts only — KPIs are now real) ────────────────────────────────
+// Funnel, topic breakdown, and 30d trend remain illustrative until
+// WAL-based per-topic data is available server-side.
+// KPI strip is wired to real portalReporting.stats() below.
 
 // Funnel data
 const FUNNEL_DATA = [
@@ -60,24 +62,41 @@ export default function PublisherDashboard() {
   const { user } = useAuth();
   const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus>("not_integrated");
   const [hasPublisher, setHasPublisher] = useState(true);
+  const [kpi, setKpi] = useState<{
+    impressions: number;
+    clicks: number;
+    fill_rate: number;
+    earnings_usd: number;
+  } | null>(null);
+  const [kpiLoading, setKpiLoading] = useState(true);
 
   useEffect(() => {
-    // Check if publisher has completed onboarding + get real integration status
+    // Fetch publisher record → integration status + real stats
     portalPublishers.me()
       .then(() => {
-        return portalReporting.integrationStatus();
+        // Publisher exists — fetch integration status and 30d stats in parallel
+        return Promise.all([
+          portalReporting.integrationStatus(),
+          portalReporting.stats(),
+        ]);
       })
-      .then((res) => {
-        setIntegrationStatus(res.integration_status as IntegrationStatus);
+      .then(([statusRes, statsRes]) => {
+        setIntegrationStatus(statusRes.integration_status as IntegrationStatus);
+        setKpi({
+          impressions: statsRes.summary.total_impressions,
+          clicks: statsRes.summary.total_clicks,
+          fill_rate: 0, // not available in current API — placeholder
+          earnings_usd: statsRes.summary.total_spend_usd,
+        });
       })
       .catch((err: unknown) => {
         if (err instanceof ApiError && err.status === 404) {
-          // Publisher hasn't onboarded yet
           setHasPublisher(false);
           setIntegrationStatus("not_integrated");
         }
-        // On network errors just keep "not_integrated" — don't block the dashboard
-      });
+        // On other errors keep status quo — don't block the dashboard
+      })
+      .finally(() => setKpiLoading(false));
   }, []);
 
   const statusCfg = STATUS_CONFIG[integrationStatus] ?? STATUS_CONFIG["not_integrated"];
@@ -163,12 +182,47 @@ export default function PublisherDashboard() {
           </div>
         )}
 
-        {/* KPI strip */}
+        {/* KPI strip — real data from portalReporting.stats() */}
         <div className="grid grid-cols-4 gap-4">
-          <KpiCard label="Est. earnings (30d)"  value={formatCurrency(DEMO_STATS.earnings_usd)}   delta="14%"  deltaDir="up"   sub="vs prior period" accent="green"  />
-          <KpiCard label="Impressions served"   value={formatNumber(DEMO_STATS.impressions)}       delta="9%"   deltaDir="up"   sub="vs prior period" accent="indigo" />
-          <KpiCard label="Fill rate"            value={formatPercent(DEMO_STATS.fill_rate)}        delta="3pp"  deltaDir="down" sub="vs prior period" accent="amber"  />
-          <KpiCard label="Clicks"               value={formatNumber(DEMO_STATS.clicks)}            delta="6%"   deltaDir="up"   sub="vs prior period" accent="blue"   />
+          {kpiLoading ? (
+            <>
+              <Skeleton className="h-24 rounded-[var(--radius-lg)]" />
+              <Skeleton className="h-24 rounded-[var(--radius-lg)]" />
+              <Skeleton className="h-24 rounded-[var(--radius-lg)]" />
+              <Skeleton className="h-24 rounded-[var(--radius-lg)]" />
+            </>
+          ) : (
+            <>
+              <KpiCard
+                label="Est. earnings (30d)"
+                value={formatCurrency(kpi?.earnings_usd ?? 0)}
+                sub="from impressions served"
+                accent="green"
+              />
+              <KpiCard
+                label="Impressions served"
+                value={formatNumber(kpi?.impressions ?? 0)}
+                sub="last 30 days"
+                accent="indigo"
+              />
+              <KpiCard
+                label="Clicks"
+                value={formatNumber(kpi?.clicks ?? 0)}
+                sub="last 30 days"
+                accent="blue"
+              />
+              <KpiCard
+                label="Avg CTR"
+                value={
+                  kpi && kpi.impressions > 0
+                    ? formatPercent(kpi.clicks / kpi.impressions)
+                    : "—"
+                }
+                sub="clicks / impressions"
+                accent="amber"
+              />
+            </>
+          )}
         </div>
 
         {/* Funnel + charts */}
@@ -195,7 +249,11 @@ export default function PublisherDashboard() {
                     {i < FUNNEL_DATA.length - 1 && (
                       <div className="flex items-center justify-center gap-2 py-1.5 text-[11px] text-[var(--color-text-secondary)]">
                         <div className="w-px h-3 bg-[var(--color-border-default)]" />
-                        <span>↓ {i === 0 ? `Fill rate ${formatPercent(DEMO_STATS.fill_rate)}` : `CTR ${formatPercent(DEMO_STATS.clicks / DEMO_STATS.impressions)}`}</span>
+                        <span>
+                          {i === 0
+                            ? `Fill rate —`
+                            : `CTR ${kpi && kpi.impressions > 0 ? formatPercent(kpi.clicks / kpi.impressions) : "—"}`}
+                        </span>
                         <div className="w-px h-3 bg-[var(--color-border-default)]" />
                       </div>
                     )}
@@ -204,7 +262,7 @@ export default function PublisherDashboard() {
                 <div className="flex items-center justify-between px-4 py-2.5 rounded-[var(--radius-md)] mt-1"
                   style={{ background: "#10B981", width: "38%", marginLeft: "15%" }}>
                   <span className="text-[12px] font-semibold text-white">Est. earnings</span>
-                  <span className="text-[13px] font-bold text-white">{formatCurrency(DEMO_STATS.earnings_usd)}</span>
+                  <span className="text-[13px] font-bold text-white">{formatCurrency(kpi?.earnings_usd ?? 0)}</span>
                 </div>
               </div>
             </ChartCard>
