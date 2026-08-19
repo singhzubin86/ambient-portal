@@ -34,7 +34,21 @@ function LoginForm() {
     }
     setLoading(true);
     try {
-      const user = await portalAuth.login({ email: form.email.trim().toLowerCase(), password: form.password });
+      // POST to the same-origin portal route handler which sets the cookie
+      // on the portal domain — direct API calls set cookies on ambient-api.fly.dev
+      // which the portal middleware cannot read (cross-origin SameSite block).
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: form.email.trim().toLowerCase(), password: form.password }),
+      });
+      if (!loginRes.ok) {
+        const body = await loginRes.json().catch(() => ({}));
+        const err = { status: loginRes.status, code: (body as { error?: string }).error ?? "UNKNOWN_ERROR", message: (body as { message?: string }).message ?? `Error ${loginRes.status}` };
+        throw Object.assign(new Error(err.message), { status: err.status, code: err.code, isApiError: true });
+      }
+      const user = await loginRes.json();
       // Redirect based on role
       const destination =
         nextPath && nextPath.startsWith("/") ? nextPath :
@@ -42,17 +56,20 @@ function LoginForm() {
         "/publisher/dashboard";
       window.location.href = destination;
     } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 401) {
+      const e = err as { status?: number; code?: string; message?: string; isApiError?: boolean };
+      if (e.isApiError || err instanceof ApiError) {
+        const status = e.status ?? (err instanceof ApiError ? err.status : 0);
+        const code = e.code ?? (err instanceof ApiError ? err.code : "");
+        if (status === 401) {
           setError("Incorrect email or password.");
-        } else if (err.status === 403 && err.code === "email_not_verified") {
+        } else if (status === 403 && code === "email_not_verified") {
           setError("Please verify your email before logging in. Check your inbox for the verification link.");
-        } else if (err.status === 403 && err.code === "ACCOUNT_SUSPENDED") {
+        } else if (status === 403 && code === "ACCOUNT_SUSPENDED") {
           setError("This account has been suspended. Contact support.");
-        } else if (err.status === 429) {
+        } else if (status === 429) {
           setError("Too many login attempts — please wait 15 minutes and try again.");
         } else {
-          setError(err.message);
+          setError(e.message ?? "Something went wrong.");
         }
       } else {
         setError("Something went wrong. Please try again.");
