@@ -11,12 +11,18 @@
  *   through same-origin Next.js route handlers that read the cookie
  *   server-side and forward it as a Bearer token to the API.
  *
- *   /api/auth/me    → GET  /v1/portal/auth/me
+ *   /api/auth/me     → GET  /v1/portal/auth/me
  *   /api/auth/logout → POST /v1/portal/auth/logout
  *   /api/auth/login  → POST /v1/portal/auth/login
  *
- *   All other calls (publishers, reporting) use credentials:"include" with
- *   BASE_URL — those endpoints also need proxying if they return 401 in prod.
+ *   /api/publishers/onboard           → POST /v1/publishers
+ *   /api/publishers/me                → GET  /v1/publishers/me
+ *   /api/publishers/me/regenerate-key → POST /v1/publishers/me/regenerate-key
+ *   /api/reporting/stats              → GET  /v1/portal/publishers/me/stats
+ *   /api/reporting/integration-status → GET  /v1/portal/publishers/me/integration-status
+ *
+ *   All other calls (signup, resend-verification) go directly to the API
+ *   because they don't require an existing session cookie.
  *
  * Base URL pulled from env — falls back to localhost:8080 for dev.
  */
@@ -216,20 +222,29 @@ export interface PublisherRecord {
 }
 
 export const portalPublishers = {
-  /** POST /v1/publishers — onboard + provision API key (shown once) */
+  /**
+   * POST /api/publishers/onboard — same-origin proxy to POST /v1/publishers
+   * Onboard + provision API key (shown once).
+   */
   create: (p: OnboardPayload) =>
-    request<PublisherRecord>("/v1/publishers", {
+    portalRequest<PublisherRecord>("/api/publishers/onboard", {
       method: "POST",
       body: JSON.stringify(p),
     }),
 
-  /** GET /v1/publishers/me — returns masked key, not the full key */
-  me: () => request<PublisherRecord>("/v1/publishers/me"),
+  /**
+   * GET /api/publishers/me — same-origin proxy to GET /v1/publishers/me
+   * Returns masked key. Browser can't send portal cookie cross-origin.
+   */
+  me: () => portalRequest<PublisherRecord>("/api/publishers/me"),
 
-  /** POST /v1/publishers/me/regenerate-key — rotates key, returns new full key once */
+  /**
+   * POST /api/publishers/me/regenerate-key — same-origin proxy
+   * Rotates key, returns new full key once.
+   */
   regenerateKey: () =>
-    request<{ publisher_id: string; api_key: string; api_key_prefix: string }>(
-      "/v1/publishers/me/regenerate-key",
+    portalRequest<{ publisher_id: string; api_key: string; api_key_prefix: string }>(
+      "/api/publishers/me/regenerate-key",
       { method: "POST" }
     ),
 };
@@ -264,17 +279,23 @@ export interface IntegrationStatusResponse {
 }
 
 export const portalReporting = {
-  /** GET /v1/portal/publishers/me/stats */
+  /**
+   * GET /api/reporting/stats — same-origin proxy to GET /v1/portal/publishers/me/stats
+   * Browser can't send portal cookie cross-origin to the API.
+   */
   stats: (params?: { start_date?: string; end_date?: string }) => {
     const qs = params ? new URLSearchParams(params as Record<string, string>).toString() : "";
-    return request<StatsResponse>(
-      `/v1/portal/publishers/me/stats${qs ? `?${qs}` : ""}`
+    return portalRequest<StatsResponse>(
+      `/api/reporting/stats${qs ? `?${qs}` : ""}`
     );
   },
 
-  /** GET /v1/portal/publishers/me/integration-status */
+  /**
+   * GET /api/reporting/integration-status — same-origin proxy
+   * to GET /v1/portal/publishers/me/integration-status
+   */
   integrationStatus: () =>
-    request<IntegrationStatusResponse>("/v1/portal/publishers/me/integration-status"),
+    portalRequest<IntegrationStatusResponse>("/api/reporting/integration-status"),
 };
 
 // ── Campaigns (advertiser — Bearer-based, separate auth path) ─────────────────
