@@ -15,9 +15,9 @@
  *   /api/auth/logout → POST /v1/portal/auth/logout
  *   /api/auth/login  → POST /v1/portal/auth/login
  *
- *   /api/publishers/onboard           → POST /v1/publishers
- *   /api/publishers/me                → GET  /v1/publishers/me
- *   /api/publishers/me/regenerate-key → POST /v1/publishers/me/regenerate-key
+ *   /api/publishers/onboard           → POST /v1/portal/publishers
+ *   /api/publishers/me                → GET  /v1/portal/publishers/me
+ *   /api/publishers/me/regenerate-key → POST /v1/portal/publishers/me/regenerate-key
  *   /api/reporting/stats              → GET  /v1/portal/publishers/me/stats
  *   /api/reporting/integration-status → GET  /v1/portal/publishers/me/integration-status
  *
@@ -223,7 +223,7 @@ export interface PublisherRecord {
 
 export const portalPublishers = {
   /**
-   * POST /api/publishers/onboard — same-origin proxy to POST /v1/publishers
+   * POST /api/publishers/onboard — same-origin proxy to POST /v1/portal/publishers
    * Onboard + provision API key (shown once).
    */
   create: (p: OnboardPayload) =>
@@ -233,7 +233,7 @@ export const portalPublishers = {
     }),
 
   /**
-   * GET /api/publishers/me — same-origin proxy to GET /v1/publishers/me
+   * GET /api/publishers/me — same-origin proxy to GET /v1/portal/publishers/me
    * Returns masked key. Browser can't send portal cookie cross-origin.
    */
   me: () => portalRequest<PublisherRecord>("/api/publishers/me"),

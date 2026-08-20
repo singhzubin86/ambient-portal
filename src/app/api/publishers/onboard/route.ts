@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const apiRes = await fetch(`${API_URL}/v1/publishers`, {
+    const apiRes = await fetch(`${API_URL}/v1/portal/publishers`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

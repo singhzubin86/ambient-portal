@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const apiRes = await fetch(`${API_URL}/v1/publishers/me/regenerate-key`, {
+    const apiRes = await fetch(`${API_URL}/v1/portal/publishers/me/regenerate-key`, {
       method: "POST",
       headers: { Cookie: `${API_COOKIE_NAME}=${token}` },
     });

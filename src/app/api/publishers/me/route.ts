@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const apiRes = await fetch(`${API_URL}/v1/publishers/me`, {
+    const apiRes = await fetch(`${API_URL}/v1/portal/publishers/me`, {
       headers: { Cookie: `${API_COOKIE_NAME}=${token}` },
     });
     const data = await apiRes.json();
