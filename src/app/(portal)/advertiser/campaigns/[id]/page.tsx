@@ -1,138 +1,199 @@
 "use client";
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Pause, Play, Pencil, Trash2 } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Pause, Play } from "lucide-react";
 import { PortalLayout } from "@/components/shell/PortalLayout";
-import { Badge, Button, Modal, StatCard, ProgressBar, Banner } from "@/components/ui";
+import { Badge, Button, StatCard, ProgressBar, Banner, Skeleton } from "@/components/ui";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
-import type { Campaign, CampaignStats } from "@/types";
+import { portalAdvertiserCampaigns, ApiError } from "@/lib/api/client";
+import type { AdvertiserCampaign } from "@/types";
 
-// Demo data — replace with campaigns.get() + campaigns.stats()
-const DEMO: Campaign = {
-  id: "c1", name: "Spring Promo", status: "active", advertiser_category: "tech",
-  creative: { headline: "Try Ambient — ads that fit the conversation", body: "Reach engaged users in AI chat — no interruptions.", cta_text: "Learn More", destination_url: "https://brand.com/landing" },
-  targeting: { topics: ["Technology", "Software & SaaS"], keywords: ["AI tools", "chatbot", "productivity"], excluded_topics: [] },
-  budget: { total_usd: 5000, cpm_usd: 12, daily_cap_usd: 200 },
-  flight: { start_date: "2026-09-01", end_date: "2026-09-30" },
-  created_at: "2026-08-01T00:00:00Z", updated_at: "2026-08-01T00:00:00Z",
-};
-const DEMO_STATS: CampaignStats = { campaign_id: "c1", impressions: 175000, clicks: 3675, ctr: 0.021, spend_usd: 2100 };
-
-export default function CampaignDetailPage() {
+function CampaignDetailContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const campaign = DEMO; // replace: await campaigns.get(token, id)
-  const stats = DEMO_STATS;
+  const searchParams = useSearchParams();
+  const justCreated = searchParams.get("created") === "1";
 
-  const [status, setStatus] = useState(campaign.status);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [campaign, setCampaign] = useState<AdvertiserCampaign | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [toggling, setToggling] = useState(false);
 
-  const spendPercent = Math.round((stats.spend_usd / campaign.budget.total_usd) * 100);
+  useEffect(() => {
+    if (!id) return;
+    portalAdvertiserCampaigns
+      .get(id)
+      .then(setCampaign)
+      .catch((err: unknown) => {
+        if (err instanceof ApiError && err.status === 404) {
+          setError("Campaign not found.");
+        } else {
+          setError("Failed to load campaign. Please refresh.");
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
 
   async function togglePause() {
-    setStatus((s) => (s === "active" ? "paused" : "active"));
-    // In production: campaigns.update(token, id, { status: next })
+    if (!campaign) return;
+    setToggling(true);
+    setActionError(null);
+    try {
+      const res =
+        campaign.status === "active"
+          ? await portalAdvertiserCampaigns.pause(id)
+          : await portalAdvertiserCampaigns.resume(id);
+      setCampaign((prev) => prev ? { ...prev, status: res.status as AdvertiserCampaign["status"] } : prev);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Action failed — please try again.");
+    } finally {
+      setToggling(false);
+    }
   }
 
-  async function handleDelete() {
-    setDeleting(true);
-    await new Promise((r) => setTimeout(r, 700));
-    router.push("/advertiser/campaigns");
+  if (loading) {
+    return (
+      <PortalLayout portalType="advertiser">
+        <div className="space-y-6 max-w-[860px]">
+          <Skeleton className="h-8 w-48 rounded" />
+          <Skeleton className="h-28 rounded-[var(--radius-lg)]" />
+          <Skeleton className="h-48 rounded-[var(--radius-lg)]" />
+        </div>
+      </PortalLayout>
+    );
   }
 
-  const isPendingReview = status === "pending_review";
-  const isRejected = status === "rejected";
+  if (error || !campaign) {
+    return (
+      <PortalLayout portalType="advertiser">
+        <Banner variant="error" message={error ?? "Campaign not found."} />
+      </PortalLayout>
+    );
+  }
+
+  const spendPercent = campaign.total_budget_usd > 0
+    ? Math.min(100, Math.round((campaign.spend_usd / campaign.total_budget_usd) * 100))
+    : 0;
 
   return (
-    <PortalLayout portalType="advertiser" >
+    <PortalLayout portalType="advertiser">
       <div className="space-y-8 max-w-[860px]">
         {/* Breadcrumb */}
         <p className="text-[12px] text-[var(--color-text-secondary)]">
-          <a href="/advertiser/campaigns" className="hover:underline">Campaigns</a> / {campaign.name}
+          <a href="/advertiser/campaigns" className="hover:underline">Campaigns</a>{" / "}
+          {campaign.name}
         </p>
+
+        {/* Created success banner */}
+        {justCreated && (
+          <Banner variant="success" message="Campaign is live — it may take up to 30 seconds to appear in the ad system." />
+        )}
+
+        {/* Action error */}
+        {actionError && (
+          <Banner variant="error" message={actionError} />
+        )}
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">{campaign.name}</h1>
-            <Badge variant={status as import("@/components/ui/Badge").BadgeVariant} />
+            <h1 className="text-[22px] font-semibold text-[var(--color-text-primary)]">
+              {campaign.name}
+            </h1>
+            <Badge variant={campaign.status as import("@/components/ui/Badge").BadgeVariant} />
           </div>
           <div className="flex items-center gap-2">
-            {(status === "active" || status === "paused") && (
-              <Button variant="secondary" size="sm" onClick={togglePause}>
-                {status === "active" ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Resume</>}
+            {(campaign.status === "active" || campaign.status === "paused") && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={togglePause}
+                loading={toggling}
+              >
+                {campaign.status === "active"
+                  ? <><Pause size={14} /> Pause</>
+                  : <><Play size={14} /> Resume</>}
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={() => router.push(`/advertiser/campaigns/${id}/edit`)}>
-              <Pencil size={14} /> Edit campaign
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
-              <Trash2 size={14} /> Delete
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push("/advertiser/reporting")}
+            >
+              View report
             </Button>
           </div>
         </div>
 
-        {/* Pending review notice */}
-        {isPendingReview && (
-          <Banner variant="warning"
-            message="Pending compliance review — typically reviewed within 1 business day. You will receive an email when your campaign is activated or if changes are needed." />
-        )}
-
-        {/* Rejection reason */}
-        {isRejected && campaign.rejection_reason && (
-          <Banner variant="error"
-            message={`Campaign rejected: ${campaign.rejection_reason} Please edit your campaign and resubmit.`}
-            action={{ label: "Edit campaign", onClick: () => router.push(`/advertiser/campaigns/${id}/edit`) }} />
-        )}
-
-        {/* Stats */}
+        {/* Stats strip */}
         <div className="grid grid-cols-4 gap-4">
-          <StatCard label="Impressions" value={formatNumber(stats.impressions)} />
-          <StatCard label="Clicks" value={formatNumber(stats.clicks)} />
-          <StatCard label="CTR" value={formatPercent(stats.ctr)} />
-          <StatCard label="Spend" value={formatCurrency(stats.spend_usd)} />
+          <StatCard label="Impressions" value={formatNumber(campaign.impressions)} />
+          <StatCard label="Clicks"      value={formatNumber(campaign.clicks)} />
+          <StatCard label="CTR"         value={formatPercent(campaign.ctr)} />
+          <StatCard label="Spend"       value={formatCurrency(campaign.spend_usd)} />
         </div>
 
-        {/* Spend progress */}
+        {/* Budget progress */}
         <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-lg)] p-6">
           <div className="flex justify-between text-[13px] mb-3">
             <span className="text-[var(--color-text-secondary)]">Budget</span>
-            <span className="font-semibold">{formatCurrency(stats.spend_usd)} of {formatCurrency(campaign.budget.total_usd)}</span>
+            <span className="font-semibold">
+              {formatCurrency(campaign.spend_usd)} of {formatCurrency(campaign.total_budget_usd)}
+            </span>
           </div>
           <ProgressBar value={spendPercent} label={`${spendPercent}% spent`} />
           <div className="flex justify-between text-[11px] text-[var(--color-text-secondary)] mt-2">
-            <span>{campaign.flight.start_date}</span>
-            <span>{campaign.flight.end_date}</span>
+            <span>{campaign.start_date}</span>
+            <span>{campaign.end_date}</span>
           </div>
+          {campaign.daily_cap_usd && (
+            <p className="text-[11px] text-[var(--color-text-secondary)] mt-1">
+              Daily cap: {formatCurrency(campaign.daily_cap_usd)}
+            </p>
+          )}
         </div>
 
         {/* Creative preview */}
         <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-lg)] p-6 space-y-4">
           <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">Creative preview</h2>
           <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-ad)]">
-            <div className="px-3 pt-2 pb-1"><span className="text-[11px] font-semibold text-[var(--color-disclosure-text)]">◈ Sponsored</span></div>
+            <div className="px-3 pt-2 pb-1">
+              <span className="text-[11px] font-semibold text-[var(--color-disclosure-text)]">◈ Sponsored</span>
+            </div>
             <div className="border-t border-[var(--color-border-subtle)]" />
             <div className="px-4 py-3 space-y-1">
-              <p className="text-[15px] font-semibold">{campaign.creative.headline}</p>
-              <p className="text-[13px]">{campaign.creative.body}</p>
-              <div className="pt-1"><span className="inline-block bg-[var(--color-cta-primary)] text-white text-[13px] font-semibold px-4 py-2 rounded-[var(--radius-md)]">{campaign.creative.cta_text}</span></div>
+              <p className="text-[15px] font-semibold">{campaign.headline}</p>
+              <p className="text-[13px]">{campaign.body}</p>
+              <div className="pt-1">
+                <span className="inline-block bg-[var(--color-cta-primary)] text-white text-[13px] font-semibold px-4 py-2 rounded-[var(--radius-md)]">
+                  {campaign.cta_text}
+                </span>
+              </div>
             </div>
           </div>
           <div className="text-[12px] text-[var(--color-text-secondary)] space-y-1">
-            <p>Targeting: {campaign.targeting.topics.join(", ")} · {campaign.targeting.keywords.join(", ")}</p>
-            <p>CPM: {formatCurrency(campaign.budget.cpm_usd)} · Daily cap: {campaign.budget.daily_cap_usd ? formatCurrency(campaign.budget.daily_cap_usd) : "None"}</p>
+            {campaign.topics.length > 0 && (
+              <p>Topics: {campaign.topics.join(", ")}</p>
+            )}
+            {campaign.keywords.length > 0 && (
+              <p>Keywords: {campaign.keywords.join(", ")}</p>
+            )}
+            <p>
+              CPM bid: {formatCurrency(campaign.cpm_usd)}
+              {campaign.daily_cap_usd ? ` · Daily cap: ${formatCurrency(campaign.daily_cap_usd)}` : ""}
+            </p>
           </div>
-          <a href="/advertiser/reporting" className="text-[13px] text-[var(--color-brand-accent)] hover:underline">View full report →</a>
         </div>
       </div>
-
-      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)}
-        title="Delete campaign"
-        confirmLabel="Delete campaign" onConfirm={handleDelete}
-        confirmVariant="danger" confirmLoading={deleting}>
-        <p>Are you sure you want to delete <strong>{campaign.name}</strong>? This cannot be undone.</p>
-      </Modal>
     </PortalLayout>
+  );
+}
+
+export default function CampaignDetailPage() {
+  return (
+    <Suspense fallback={<PortalLayout portalType="advertiser"><Skeleton className="h-48 rounded-[var(--radius-lg)]" /></PortalLayout>}>
+      <CampaignDetailContent />
+    </Suspense>
   );
 }

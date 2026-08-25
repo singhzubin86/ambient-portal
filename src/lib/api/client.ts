@@ -360,3 +360,125 @@ export const campaigns = {
     );
   },
 };
+
+// ── Advertiser self-service portal API (SPEC-A1 through SPEC-A4) ──────────────
+//
+// All calls go through same-origin proxy routes — the session cookie is on the
+// portal domain and cannot be sent cross-origin to ambient-api.fly.dev.
+// Proxy pattern: /api/advertisers/... → /v1/portal/advertisers/me/...
+//
+
+import type {
+  AdvertiserRecord,
+  AdvertiserCampaign,
+  CreateCampaignPayload as AdvertiserCreateCampaignPayload,
+  AdvertiserStats,
+  AdvertiserReportResponse,
+} from "@/types";
+
+/** Shared fetch wrapper for advertiser portal proxy routes */
+async function advertiserRequest<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, body?.error ?? "UNKNOWN", body?.message ?? res.statusText, body?.errors);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const portalAdvertisers = {
+  /** SPEC-A1: upsert advertiser profile */
+  onboard: (p: {
+    company_website: string;
+    industry: string;
+    monthly_budget_bracket: string;
+    billing_contact_name: string;
+    billing_email: string;
+    company_address: string;
+  }) =>
+    advertiserRequest<{ advertiser_id: string; status: string }>(
+      "/api/advertisers/onboard",
+      { method: "POST", body: JSON.stringify(p) }
+    ),
+
+  /** SPEC-A1: get own advertiser profile — 404 if not onboarded yet */
+  me: () => advertiserRequest<AdvertiserRecord>("/api/advertisers/me"),
+};
+
+export const portalAdvertiserCampaigns = {
+  /** SPEC-A2: list campaigns with live metrics */
+  list: () =>
+    advertiserRequest<{ campaigns: AdvertiserCampaign[] }>(
+      "/api/advertisers/campaigns"
+    ),
+
+  /** SPEC-A2: get campaign detail with live metrics */
+  get: (id: string) =>
+    advertiserRequest<AdvertiserCampaign>(`/api/advertisers/campaigns/${id}`),
+
+  /** SPEC-A2: create campaign (auto-approved to active) */
+  create: (p: AdvertiserCreateCampaignPayload) =>
+    advertiserRequest<{ campaign_id: string; name: string; status: string; created_at: string }>(
+      "/api/advertisers/campaigns",
+      { method: "POST", body: JSON.stringify(p) }
+    ),
+
+  /** SPEC-A2: update mutable campaign fields */
+  update: (id: string, p: Partial<Pick<AdvertiserCampaign, "name" | "headline" | "body" | "cta_text" | "destination_url" | "keywords" | "topics" | "daily_cap_usd" | "end_date">>) =>
+    advertiserRequest<AdvertiserCampaign>(`/api/advertisers/campaigns/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(p),
+    }),
+
+  /** SPEC-A2: pause campaign */
+  pause: (id: string) =>
+    advertiserRequest<{ status: string }>(
+      `/api/advertisers/campaigns/${id}/pause`,
+      { method: "POST" }
+    ),
+
+  /** SPEC-A2: resume paused campaign */
+  resume: (id: string) =>
+    advertiserRequest<{ status: string }>(
+      `/api/advertisers/campaigns/${id}/resume`,
+      { method: "POST" }
+    ),
+};
+
+export const portalAdvertiserReporting = {
+  /** SPEC-A3: dashboard summary */
+  stats: (params?: { start_date?: string; end_date?: string }) => {
+    const qs = params ? new URLSearchParams(params as Record<string, string>).toString() : "";
+    return advertiserRequest<AdvertiserStats>(
+      `/api/advertisers/stats${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  /** SPEC-A4: daily rows by campaign */
+  reports: (params?: { start_date?: string; end_date?: string; campaign_id?: string }) => {
+    const qs = params ? new URLSearchParams(params as Record<string, string>).toString() : "";
+    return advertiserRequest<AdvertiserReportResponse>(
+      `/api/advertisers/reports${qs ? `?${qs}` : ""}`
+    );
+  },
+
+  /** SPEC-A4: CSV export — triggers browser download */
+  exportCsv: (params?: { start_date?: string; end_date?: string; campaign_id?: string }) => {
+    const p: Record<string, string> = { format: "csv", ...(params ?? {}) };
+    const qs = new URLSearchParams(p).toString();
+    // Navigate directly — browser handles Content-Disposition download
+    window.location.assign(`/api/advertisers/reports?${qs}`);
+  },
+};

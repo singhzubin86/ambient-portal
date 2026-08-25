@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { PortalLayout } from "@/components/shell/PortalLayout";
 import { Button, Input, Select, Banner, WizardProgress } from "@/components/ui";
 import { estimateImpressions, formatNumber, formatCurrency } from "@/lib/utils";
+import { portalAdvertiserCampaigns, ApiError } from "@/lib/api/client";
 import { BLOCKED_CATEGORIES, CONDITIONAL_CATEGORIES, LEGAL_SERVICES_CATEGORY } from "@/types";
 import type { AdvertiserCategory } from "@/types";
 
@@ -138,8 +139,33 @@ export default function NewCampaignPage() {
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setSubmitting(true);
     try {
-      await new Promise((r) => setTimeout(r, 900)); // replace with campaigns.create()
-      router.push("/advertiser/campaigns?created=1");
+      const result = await portalAdvertiserCampaigns.create({
+        name: form.campaign_name,
+        headline: form.headline,
+        body: form.body,
+        cta_text: form.cta_text || undefined,
+        destination_url: form.destination_url,
+        keywords: form.keywords.length > 0 ? form.keywords : undefined,
+        topics: form.topics.length > 0 ? form.topics : undefined,
+        total_budget_usd: parseFloat(form.total_budget),
+        cpm_usd: parseFloat(form.cpm),
+        daily_cap_usd: form.daily_cap ? parseFloat(form.daily_cap) : undefined,
+        start_date: form.start_date,
+        end_date: form.end_date,
+      });
+      router.push(`/advertiser/campaigns/${result.campaign_id}?created=1`);
+    } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        // Surface per-field errors — navigate to relevant step
+        setErrors(err.errors as Record<string, string>);
+        // Heuristic: go to step where first error field lives
+        const firstField = Object.keys(err.errors)[0] ?? "";
+        if (["headline", "body", "cta_text", "destination_url", "campaign_name"].includes(firstField)) setStep(0);
+        else if (["keywords", "topics"].includes(firstField)) setStep(1);
+        else if (["total_budget_usd", "cpm_usd", "daily_cap_usd", "start_date", "end_date"].includes(firstField)) setStep(2);
+      } else {
+        setErrors({ _server: err instanceof Error ? err.message : "Submission failed. Please try again." });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -381,6 +407,10 @@ export default function NewCampaignPage() {
             {isConditional && (
               <Banner variant="warning"
                 message={`This campaign will enter "Pending compliance review" after submission — typically reviewed within 1 business day.`} />
+            )}
+
+            {errors._server && (
+              <Banner variant="error" message={errors._server} />
             )}
 
             {/* Creative summary */}

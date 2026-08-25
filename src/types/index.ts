@@ -126,3 +126,107 @@ export interface User {
   company_name: string;
   roles: ("advertiser" | "publisher")[];
 }
+
+// ── Advertiser self-service API types (SPEC-A1 through SPEC-A4) ───────────────
+
+export type AdvertiserIndustry =
+  | "cpg" | "retail" | "finance" | "tech" | "education" | "health" | "other";
+
+export type AdvertiserBudgetBracket = "lt_5k" | "5k_25k" | "gt_25k";
+
+/** SPEC-A1: advertiser profile returned by GET /v1/portal/advertisers/me */
+export interface AdvertiserRecord {
+  advertiser_id: string;
+  company_name: string;
+  company_website: string;
+  industry: AdvertiserIndustry;
+  monthly_budget_bracket: AdvertiserBudgetBracket;
+  billing_contact_name: string;
+  billing_email: string;
+  company_address: string;
+  status: "active" | "pending";
+}
+
+/** SPEC-A2: campaign as returned by GET /v1/portal/advertisers/me/campaigns */
+export interface AdvertiserCampaign {
+  campaign_id: string;
+  name: string;
+  headline: string;
+  body: string;
+  cta_text: string;
+  destination_url: string;
+  keywords: string[];
+  topics: string[];
+  total_budget_usd: number;
+  cpm_usd: number;
+  daily_cap_usd?: number;
+  start_date: string; // YYYY-MM-DD
+  end_date: string;
+  status: "active" | "paused" | "ended" | "draft";
+  // live metrics (present on list + detail responses)
+  spend_usd: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  created_at: string;
+}
+
+/** SPEC-A2: POST /v1/portal/advertisers/me/campaigns request body */
+export interface CreateCampaignPayload {
+  name: string;
+  headline: string;
+  body: string;
+  cta_text?: string;
+  destination_url: string;
+  keywords?: string[];
+  topics?: string[];
+  total_budget_usd: number;
+  cpm_usd: number;
+  daily_cap_usd?: number;
+  start_date: string;
+  end_date: string;
+}
+
+/** SPEC-A3: GET /v1/portal/advertisers/me/stats response */
+export interface AdvertiserStats {
+  advertiser_id: string;
+  start_date: string;
+  end_date: string;
+  summary: {
+    active_campaigns: number;
+    total_impressions: number;
+    total_clicks: number;
+    overall_ctr: number;
+    total_spend_usd: number;
+  };
+  by_campaign: Array<{
+    campaign_id: string;
+    name: string;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    spend_usd: number;
+    status: string;
+  }>;
+}
+
+/** SPEC-A4: GET /v1/portal/advertisers/me/reports response */
+export interface AdvertiserReportRow {
+  date: string;
+  campaign_id: string;
+  campaign_name: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  spend_usd: number;
+}
+
+export interface AdvertiserReportResponse {
+  summary: {
+    total_impressions: number;
+    total_clicks: number;
+    overall_ctr: number;
+    total_spend_usd: number;
+  };
+  rows: AdvertiserReportRow[];
+}
