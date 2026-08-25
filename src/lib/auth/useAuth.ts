@@ -29,9 +29,13 @@ export function useAuth(): AuthState {
       .catch((err: unknown) => {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 401) {
-          // Session expired — middleware missed it (cookie present but revoked).
-          // Redirect to login.
-          window.location.href = "/login?expired=true";
+          // Session expired — cookie still present but JWT is invalid server-side.
+          // Call the logout proxy to clear the cookie before redirecting, otherwise
+          // the middleware sees the cookie, assumes the user is logged in, and
+          // immediately redirects back to the dashboard → infinite refresh loop.
+          fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+            window.location.href = "/login?expired=true";
+          });
         } else {
           setError(err instanceof Error ? err.message : "Session error");
         }

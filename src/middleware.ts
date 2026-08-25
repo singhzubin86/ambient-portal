@@ -41,8 +41,14 @@ export function middleware(req: NextRequest) {
   const sessionCookie = req.cookies.get(COOKIE_NAME);
   const hasSession = Boolean(sessionCookie?.value);
 
-  // Logged-in users hitting auth pages → send to their dashboard
-  if (hasSession && AUTH_PAGES.some((p) => pathname.startsWith(p))) {
+  // Logged-in users hitting auth pages → send to their dashboard.
+  // Exception: allow /login?expired=true through so the session-expired
+  // redirect from useAuth can render the login page instead of looping.
+  const isExpiredRedirect =
+    pathname.startsWith("/login") &&
+    req.nextUrl.searchParams.get("expired") === "true";
+
+  if (hasSession && !isExpiredRedirect && AUTH_PAGES.some((p) => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL("/publisher/dashboard", req.url));
   }
 
