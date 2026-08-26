@@ -19,6 +19,9 @@ export interface AdObject {
   cta_url: string;
   click_token: string;
   advertiser_name?: string;
+  /** Optional product/brand image. Rendered at 16:9 above the disclosure label.
+   *  Any source aspect ratio is clipped to fit — never distorted. */
+  image_url?: string | null;
 }
 
 interface AdUnitProps {
@@ -146,7 +149,7 @@ export function AdUnit({
       <div
         className={cn(
           "rounded-[var(--radius-lg)] border border-[var(--color-border-default)]",
-          "bg-[var(--color-surface-ad)]",
+          "bg-[var(--color-surface-ad)] overflow-hidden",
           className
         )}
         aria-busy="true"
@@ -211,7 +214,22 @@ export function AdUnit({
   // ---- FULL AD UNIT ----
   const content = (
     <>
-      {/* Zone A — Disclosure header. Always first. Always from API field. */}
+      {/* Product image — above disclosure label, clipped to 16:9, never distorted */}
+      {ad.image_url && (
+        <div className="w-full aspect-video overflow-hidden bg-[var(--color-surface-hover)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={ad.image_url}
+            alt={ad.headline}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).parentElement!.style.display = "none";
+            }}
+          />
+        </div>
+      )}
+
+      {/* Zone A — Disclosure header. Always first visible text. Always from API field. */}
       <DisclosureHeader
         label={ad.disclosure_label}
         treatment={disclosureTreatment}
@@ -267,7 +285,7 @@ export function AdUnit({
       aria-label="Sponsored content"
       className={cn(
         "rounded-[var(--radius-lg)] border border-[var(--color-border-default)]",
-        "bg-[var(--color-surface-ad)]",
+        "bg-[var(--color-surface-ad)] overflow-hidden",
         ad.disclosure_placement === "surround" && "ring-2 ring-[var(--color-brand-accent)] ring-opacity-30",
         className
       )}
