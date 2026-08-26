@@ -1,15 +1,16 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PortalLayout } from "@/components/shell/PortalLayout";
 import { Input, Button, Banner, Skeleton } from "@/components/ui";
 import { portalAuth, portalAdvertisers, ApiError } from "@/lib/api/client";
+import type { AdvertiserIndustry, AdvertiserBudgetBracket } from "@/types";
 
 interface Fields {
-  // Account (from /api/auth/me)
+  // Account (from /api/auth/me) — read-only
   full_name: string;
   email: string;
   company_name: string;
-  // Advertiser profile (from /api/advertisers/me)
+  // Advertiser profile (from /api/advertisers/me) — editable
   company_website: string;
   billing_contact_name: string;
   billing_email: string;
@@ -23,6 +24,10 @@ const EMPTY: Fields = {
 
 export default function AdvertiserSettingsPage() {
   const [fields, setFields] = useState<Fields>(EMPTY);
+  // Preserve non-editable advertiser fields so Save doesn't overwrite them
+  const savedIndustry = useRef<AdvertiserIndustry>("other");
+  const savedBudgetBracket = useRef<AdvertiserBudgetBracket>("lt_5k");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -39,6 +44,11 @@ export default function AdvertiserSettingsPage() {
       }),
     ])
       .then(([me, adv]) => {
+        if (adv) {
+          // Stash the fields we can't edit here so Save round-trips them correctly
+          savedIndustry.current = adv.industry;
+          savedBudgetBracket.current = adv.monthly_budget_bracket;
+        }
         setFields({
           full_name:            me.full_name ?? "",
           email:                me.email ?? "",
@@ -63,7 +73,7 @@ export default function AdvertiserSettingsPage() {
     setError(null);
     setSuccess(false);
 
-    // Validate required advertiser fields before hitting the API
+    // Client-side validation
     const fe: Record<string, string> = {};
     if (fields.company_website && !fields.company_website.startsWith("http")) {
       fe.company_website = "Must be a valid URL (https://...)";
@@ -75,17 +85,17 @@ export default function AdvertiserSettingsPage() {
 
     setSaving(true);
     try {
-      // portalAdvertisers.onboard is an upsert — safe to call on update
-      if (fields.company_website || fields.billing_contact_name || fields.billing_email || fields.company_address) {
-        await portalAdvertisers.onboard({
-          company_website:      fields.company_website,
-          industry:             "other", // preserved from existing record via upsert
-          monthly_budget_bracket: "lt_5k", // preserved from existing record via upsert
-          billing_contact_name: fields.billing_contact_name,
-          billing_email:        fields.billing_email,
-          company_address:      fields.company_address,
-        });
-      }
+      // portalAdvertisers.onboard is an upsert — safe to call on update.
+      // Pass industry + monthly_budget_bracket from the loaded record so we
+      // never overwrite them with defaults.
+      await portalAdvertisers.onboard({
+        company_website:        fields.company_website,
+        industry:               savedIndustry.current,
+        monthly_budget_bracket: savedBudgetBracket.current,
+        billing_contact_name:   fields.billing_contact_name,
+        billing_email:          fields.billing_email,
+        company_address:        fields.company_address,
+      });
       setSuccess(true);
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
