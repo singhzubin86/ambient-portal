@@ -46,6 +46,7 @@ interface FormState {
   body: string;
   cta_text: string;
   destination_url: string;
+  image_url: string;
   advertiser_category: AdvertiserCategory | "";
   // Step 2 — Targeting
   topics: string[];
@@ -64,6 +65,7 @@ interface FormState {
 
 const INITIAL: FormState = {
   campaign_name: "", headline: "", body: "", cta_text: "", destination_url: "",
+  image_url: "",
   advertiser_category: "",
   topics: [], keywords: [], keyword_input: "", excluded_topics: [],
   total_budget: "5000", cpm: "12.00", daily_cap: "",
@@ -103,6 +105,8 @@ export default function NewCampaignPage() {
       if (!form.cta_text.trim()) e.cta_text = "CTA label is required.";
       if (form.cta_text.length > 28) e.cta_text = "CTA label must be 28 characters or fewer.";
       if (!form.destination_url.startsWith("https://")) e.destination_url = "Destination URL must start with https://.";
+      if (form.image_url && !form.image_url.startsWith("https://")) e.image_url = "Image URL must start with https://.";
+      if (form.image_url && form.image_url.length > 2048) e.image_url = "Image URL must be 2048 characters or fewer.";
     }
     if (s === 1) {
       if (form.topics.length === 0) e.topics = "Select at least one topic.";
@@ -145,6 +149,7 @@ export default function NewCampaignPage() {
         body: form.body,
         cta_text: form.cta_text || undefined,
         destination_url: form.destination_url,
+        image_url: form.image_url || undefined,
         keywords: form.keywords.length > 0 ? form.keywords : undefined,
         topics: form.topics.length > 0 ? form.topics : undefined,
         total_budget_usd: parseFloat(form.total_budget),
@@ -160,7 +165,7 @@ export default function NewCampaignPage() {
         setErrors(err.errors as Record<string, string>);
         // Heuristic: go to step where first error field lives
         const firstField = Object.keys(err.errors)[0] ?? "";
-        if (["headline", "body", "cta_text", "destination_url", "campaign_name"].includes(firstField)) setStep(0);
+        if (["headline", "body", "cta_text", "destination_url", "campaign_name", "image_url"].includes(firstField)) setStep(0);
         else if (["keywords", "topics"].includes(firstField)) setStep(1);
         else if (["total_budget_usd", "cpm_usd", "daily_cap_usd", "start_date", "end_date"].includes(firstField)) setStep(2);
       } else {
@@ -259,6 +264,14 @@ export default function NewCampaignPage() {
                 <Input label="Destination URL" type="url" placeholder="https://brand.com/landing"
                   value={form.destination_url} onChange={(e) => set("destination_url", e.target.value)}
                   error={errors.destination_url} required />
+
+                <Input label="Product image URL (optional)" type="url"
+                  placeholder="https://example.com/product-image.jpg"
+                  value={form.image_url}
+                  onChange={(e) => set("image_url", e.target.value)}
+                  error={errors.image_url}
+                  helperText="Displayed prominently in the ad card. Recommended: square or 16:9, min 300×300px."
+                  maxLength={2048} />
               </div>
             </div>
 
@@ -266,7 +279,13 @@ export default function NewCampaignPage() {
             {(form.headline || form.body) && (
               <div>
                 <p className="text-[11px] font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">Preview</p>
-                <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-ad)]">
+                <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-ad)] overflow-hidden">
+                  {form.image_url && (
+                    <div className="w-full aspect-video bg-[var(--color-surface-hover)] overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.image_url} alt="Product preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    </div>
+                  )}
                   <div className="flex items-center px-3 pt-2 pb-1">
                     <span className="text-[11px] font-semibold text-[var(--color-disclosure-text)]">◈ Sponsored</span>
                   </div>
@@ -422,7 +441,13 @@ export default function NewCampaignPage() {
                   ✎ Edit
                 </button>
               </div>
-              <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-ad)]">
+              <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-ad)] overflow-hidden">
+                {form.image_url && (
+                  <div className="w-full aspect-video bg-[var(--color-surface-hover)] overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={form.image_url} alt="Product" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  </div>
+                )}
                 <div className="px-3 pt-2 pb-1"><span className="text-[11px] font-semibold text-[var(--color-disclosure-text)]">◈ Sponsored</span></div>
                 <div className="border-t border-[var(--color-border-subtle)]" />
                 <div className="px-4 py-3 space-y-1">
@@ -432,6 +457,9 @@ export default function NewCampaignPage() {
                 </div>
               </div>
               <p className="text-[12px] text-[var(--color-text-secondary)]">Category: {form.advertiser_category}</p>
+              {form.image_url && (
+                <p className="text-[12px] text-[var(--color-text-secondary)] truncate">Image: {form.image_url}</p>
+              )}
             </div>
 
             {/* Targeting summary */}

@@ -155,6 +155,7 @@ export interface AdvertiserCampaign {
   body: string;
   cta_text: string;
   destination_url: string;
+  image_url?: string | null;
   keywords: string[];
   topics: string[];
   total_budget_usd: number;
@@ -178,6 +179,7 @@ export interface CreateCampaignPayload {
   body: string;
   cta_text?: string;
   destination_url: string;
+  image_url?: string;
   keywords?: string[];
   topics?: string[];
   total_budget_usd: number;
