@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ambient Retailer Chatbot Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --radius: 14px;
+      --shadow: 0 4px 28px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: var(--font);
+      background: #f2f4f8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 48px;
+      color: #1a1a2e;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      width: 100%;
+      max-width: 720px;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .page-header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 6px;
+    }
+    .page-header p {
+      font-size: 0.875rem;
+      color: #666;
+    }
+    .ambient-badge {
+      display: inline-block;
+      margin-top: 8px;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 100px;
+    }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      gap: 0;
+      background: #fff;
+      border-radius: var(--radius) var(--radius) 0 0;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border-bottom: 2px solid #e8e8f0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 14px 8px 12px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #888;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, color 0.15s;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      position: relative;
+    }
+    .tab-btn .tab-icon {
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+    .tab-btn:hover { background: #fafafa; }
+
+    /* Per-brand active colors */
+    .tab-btn.active[data-brand="bestbuy"]  { color: #0046be; border-bottom-color: #0046be; }
+    .tab-btn.active[data-brand="walmart"]  { color: #0071ce; border-bottom-color: #0071ce; }
+    .tab-btn.active[data-brand="petco"]    { color: #e4002b; border-bottom-color: #e4002b; }
+    .tab-btn.active[data-brand="target"]   { color: #cc0000; border-bottom-color: #cc0000; }
+    .tab-btn.active { background: #fff; }
+
+    /* ── Chat surface ── */
+    .chat-surface {
+      width: 100%;
+      max-width: 720px;
+      background: #fff;
+      border-radius: 0 0 var(--radius) var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+    /* Per-brand header colors */
+    .chat-header[data-brand="bestbuy"] { background: #0046be; }
+    .chat-header[data-brand="walmart"] { background: #0071ce; }
+    .chat-header[data-brand="petco"]   { background: #e4002b; }
+    .chat-header[data-brand="target"]  { background: #cc0000; }
+
+    .chat-header .avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .chat-header .title { display: flex; flex-direction: column; gap: 1px; }
+    .chat-header .title span:first-child { font-size: 0.9rem; font-weight: 700; }
+    .chat-header .title span:last-child { font-size: 0.72rem; font-weight: 400; opacity: 0.85; }
+
+    .chat-header .dot {
+      width: 8px; height: 8px;
+      background: #6fec9d;
+      border-radius: 50%;
+      margin-left: auto;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+    }
+
+    /* ── Messages ── */
+    .chat-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 360px;
+    }
+
+    .msg {
+      max-width: 78%;
+      padding: 11px 15px;
+      border-radius: 14px;
+      font-size: 0.875rem;
+      line-height: 1.55;
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .msg.user {
+      background: #eef0f7;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.bot {
+      background: #f6f6fb;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+    }
+
+    /* Brand-tinted bot bubble */
+    .chat-body[data-brand="bestbuy"] .msg.bot  { background: #eef3ff; }
+    .chat-body[data-brand="walmart"] .msg.bot  { background: #eef6ff; }
+    .chat-body[data-brand="petco"]   .msg.bot  { background: #fff0f2; }
+    .chat-body[data-brand="target"]  .msg.bot  { background: #fff0f0; }
+
+    /* ── Sponsored ad card (chat bubble style) ── */
+    .ad-bubble-wrapper {
+      align-self: flex-start;
+      max-width: 88%;
+      width: 100%;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .ad-bubble-label {
+      font-size: 0.67rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #aaa;
+      margin-bottom: 5px;
+      margin-left: 2px;
+    }
+
+    .ad-card {
+      border: 1px solid #e2e2f0;
+      border-radius: 14px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(26,26,46,0.07);
+    }
+
+    .ad-disclosure {
+      background: #f8f8ff;
+      border-bottom: 1px solid #e8e8f0;
+      padding: 5px 14px;
+      font-size: 0.68rem;
+      color: #999;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .ad-body {
+      padding: 14px 16px;
+    }
+
+    .ad-headline {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 5px;
+    }
+
+    .ad-copy {
+      font-size: 0.82rem;
+      color: #555;
+      line-height: 1.55;
+      margin-bottom: 12px;
+    }
+
+    .ad-cta {
+      display: inline-block;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s;
+      cursor: pointer;
+      border: none;
+    }
+    .ad-cta:hover { background: #2d2d50; }
+
+    .ad-empty {
+      padding: 22px 16px;
+      text-align: center;
+      color: #bbb;
+      font-size: 0.8rem;
+      border: 2px dashed #e8e8f0;
+      border-radius: 12px;
+      max-width: 88%;
+      align-self: flex-start;
+    }
+
+    /* ── Typing indicator ── */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 14px;
+      background: #f6f6fb;
+      border-radius: 14px;
+      border-bottom-left-radius: 4px;
+      align-self: flex-start;
+      width: fit-content;
+    }
+    .typing-indicator span {
+      width: 7px; height: 7px;
+      background: #bbb;
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-6px); }
+    }
+
+    /* ── Controls panel ── */
+    .controls {
+      width: 100%;
+      max-width: 720px;
+      margin-top: 20px;
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .controls-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 2px;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      min-width: 200px;
+    }
+    .field label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .field input {
+      padding: 9px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #1a1a2e;
+      font-family: var(--font);
+      background: #fafafa;
+    }
+    .field input:focus { outline: none; border-color: #1a1a2e; background: #fff; }
+
+    .btn-replay {
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-replay:hover { background: #2d2d50; }
+    .btn-replay:disabled { background: #aaa; cursor: not-allowed; }
+
+    .status {
+      font-size: 0.78rem;
+      color: #666;
+      padding: 10px 13px;
+      background: #f8f8f8;
+      border-radius: 8px;
+      border: 1px solid #e8e8e8;
+      white-space: pre-wrap;
+      font-family: "SF Mono", "Fira Mono", monospace;
+      display: none;
+    }
+    .status.visible { display: block; }
+
+    /* ── Keyword chips ── */
+    .kw-chips {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+    .kw-chip {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 100px;
+      background: #e8e8f0;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Ambient Contextual Ads — Retailer Chatbot Demo</h1>
+  <p>Four simulated retail chatbot personas, each injecting a contextual Ambient ad after the conversation.</p>
+  <span class="ambient-badge">Ambient Ad Network</span>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar" role="tablist" aria-label="Retailer chatbots">
+  <button class="tab-btn active" data-brand="bestbuy" role="tab" aria-selected="true"  aria-controls="panel-bestbuy" id="tab-bestbuy"  onclick="switchTab('bestbuy')">
+    <span class="tab-icon">🖥️</span>BestBuy
+  </button>
+  <button class="tab-btn"        data-brand="walmart" role="tab" aria-selected="false" aria-controls="panel-walmart" id="tab-walmart"  onclick="switchTab('walmart')">
+    <span class="tab-icon">🛒</span>Walmart
+  </button>
+  <button class="tab-btn"        data-brand="petco"   role="tab" aria-selected="false" aria-controls="panel-petco"   id="tab-petco"    onclick="switchTab('petco')">
+    <span class="tab-icon">🐾</span>Petco
+  </button>
+  <button class="tab-btn"        data-brand="target"  role="tab" aria-selected="false" aria-controls="panel-target"  id="tab-target"   onclick="switchTab('target')">
+    <span class="tab-icon">🎯</span>Target
+  </button>
+</div>
+
+<!-- Chat surface -->
+<div class="chat-surface" id="chatSurface">
+  <div class="chat-header" id="chatHeader" data-brand="bestbuy">
+    <div class="avatar" id="chatAvatar">🖥️</div>
+    <div class="title">
+      <span id="chatName">BestBuy Assistant</span>
+      <span id="chatSubtitle">Tech & Electronics Expert</span>
+    </div>
+    <div class="dot"></div>
+  </div>
+  <div class="chat-body" id="chatBody" data-brand="bestbuy"></div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="controls-title">Ad Request Config</div>
+  <div class="controls-row">
+    <div class="field" style="flex:2">
+      <label>API Key</label>
+      <input type="text" id="apiKey" value="amb_live_8sq8NgbnxVmB7TNZKVRNgEdV8c7tc3JgN6hfw1L2UwcX" />
+    </div>
+    <div class="field" style="flex:1">
+      <label>Active Keywords</label>
+      <div class="kw-chips" id="kwChips"></div>
+    </div>
+    <button class="btn-replay" id="replayBtn" onclick="replayTab()">↺ Replay</button>
+  </div>
+  <div id="status" class="status"></div>
+</div>
+
+<script>
+  /* ─────────────────────────────────────────────
+     Brand config
+  ───────────────────────────────────────────── */
+  const BRANDS = {
+    bestbuy: {
+      name: 'BestBuy Assistant',
+      subtitle: 'Tech & Electronics Expert',
+      icon: '🖥️',
+      keywords: ['electronics', 'laptop', 'TV', 'bestbuy'],
+      conversation: [
+        { role: 'user', text: "I'm looking for a good laptop for college — budget around $800." },
+        { role: 'bot',  text: "Great choice to plan ahead! For around $800 you'll want to look at 13–15\" laptops with at least 16 GB RAM and an SSD. Are you leaning more toward Windows or macOS? And will you be doing anything graphics-heavy like video editing?" },
+        { role: 'user', text: "Windows, mostly word processing and some light coding." },
+        { role: 'bot',  text: "Perfect — then you don't need a dedicated GPU. I'd point you toward the Lenovo IdeaPad Slim 5i or the ASUS VivoBook 15. Both have Intel Core i5, 16 GB RAM, 512 GB SSD, and land right under $800. The IdeaPad also has a great keyboard, which matters for long writing sessions." },
+        { role: 'user', text: "The IdeaPad sounds good. Does it come with Office?" },
+        { role: 'bot',  text: "It comes with a 30-day Microsoft 365 trial, then it's a subscription. But as a college student you may get Microsoft 365 Education free through your school — worth checking before you buy the subscription. Want me to show you current pricing and availability?" },
+      ]
+    },
+    walmart: {
+      name: 'Walmart Helper',
+      subtitle: 'Everyday Savings & Deals',
+      icon: '🛒',
+      keywords: ['grocery', 'household', 'walmart', 'deals'],
+      conversation: [
+        { role: 'user', text: "What's a good deal on laundry detergent right now?" },
+        { role: 'bot',  text: "We've got several great options this week! Tide Original 138-oz is $21.97 — that works out to about $0.16 per load, which is one of our best unit prices. Are you shopping in-store or doing pickup/delivery?" },
+        { role: 'user', text: "Pickup. I've got a full cart — trying to stay under $150." },
+        { role: 'bot',  text: "Got it — I'll keep value in mind. For household essentials under $150, swapping to Great Value brand on paper towels and dish soap can save you $8–12 easily. Tide is already a good pick; if you want to save a bit more, Gain 154-oz is $17.97 and performs nearly as well in tests." },
+        { role: 'user', text: "I'll grab the Gain. Anything else on sale this week?" },
+        { role: 'bot',  text: "Yes! Bounty Select-A-Size 12-pack is down to $14.97, and we have a Rollback on Arm & Hammer baking soda 8-lb at $5.47. Also, if you spend $50+ on grocery items, you qualify for free curbside pickup today — looks like you're already there!" },
+      ]
+    },
+    petco: {
+      name: 'Petco Advisor',
+      subtitle: 'Pet Health & Nutrition Specialist',
+      icon: '🐾',
+      keywords: ['pet', 'dog', 'cat', 'petco', 'pet food'],
+      conversation: [
+        { role: 'user', text: "My dog has been really itchy lately. Could it be his food?" },
+        { role: 'bot',  text: "That's definitely possible — food sensitivities are one of the top causes of skin itchiness in dogs, alongside environmental allergies. How old is your dog, what breed, and what are you currently feeding him?" },
+        { role: 'user', text: "He's a 3-year-old Golden Retriever, eating a chicken-based kibble." },
+        { role: 'bot',  text: "Chicken is actually one of the more common protein allergens for Goldens. I'd suggest trying a limited-ingredient diet with a novel protein — salmon or duck are good starting points. Hill's Science Diet Sensitive Stomach & Skin Salmon is popular for Goldens, or if you want grain-free, Taste of the Wild Pacific Stream is a great option. Give it 6–8 weeks to see a difference." },
+        { role: 'user', text: "Is there anything I should add to his diet in the meantime?" },
+        { role: 'bot',  text: "Omega-3 fatty acids can help reduce inflammation and soothe itchy skin faster. A fish oil supplement or a food already rich in omega-3s (like the salmon kibble) helps a lot. Zesty Paws Omega Bites are our top seller for this — dogs love them, and they're easy to give as a treat. You could also add a probiotic to support gut health during the food transition." },
+      ]
+    },
+    target: {
+      name: 'Target Finds',
+      subtitle: 'Style, Home & Everyday Essentials',
+      icon: '🎯',
+      keywords: ['home', 'apparel', 'target', 'style'],
+      conversation: [
+        { role: 'user', text: "I'm redecorating my living room on a budget — any ideas?" },
+        { role: 'bot',  text: "Love it! Budget decorating is all about mixing high-impact swaps with affordable accents. What's your current vibe — cozy and warm, modern minimal, or something eclectic?" },
+        { role: 'user', text: "More cozy — lots of neutrals, warm tones, maybe some plants." },
+        { role: 'bot',  text: "Perfect for the Hearth & Hand with Magnolia line — it's designed around exactly that warmth-and-neutral aesthetic. A chunky knit throw (~$35), terracotta or cream-toned throw pillows, and a woven jute rug can transform a space without a big spend. For plants, our Threshold ceramic pots look gorgeous and are under $20 each." },
+        { role: 'user', text: "Do you have any good floor lamps that won't break the bank?" },
+        { role: 'bot',  text: "Yes! The Brightech Sparq Arc Floor Lamp in matte black is $89 and has over 4,500 five-star reviews — great warm light for a reading corner. If you want something more organic, the Project 62 Wood Tripod Floor Lamp ($75) fits perfectly with the warm-neutral theme. Both ship free or are available for same-day pickup." },
+      ]
+    }
+  };
+
+  let currentBrand = 'bestbuy';
+  let replayInProgress = false;
+  let adRequested = {}; // track per-brand so switching back shows the ad
+
+  /* ─────────────────────────────────────────────
+     Tab switching
+  ───────────────────────────────────────────── */
+  function switchTab(brand) {
+    if (brand === currentBrand) return;
+    currentBrand = brand;
+
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const active = btn.dataset.brand === brand;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    });
+
+    // Update header
+    const cfg = BRANDS[brand];
+    const header = document.getElementById('chatHeader');
+    header.dataset.brand = brand;
+    document.getElementById('chatAvatar').textContent = cfg.icon;
+    document.getElementById('chatName').textContent = cfg.name;
+    document.getElementById('chatSubtitle').textContent = cfg.subtitle;
+
+    // Update chat body brand tint
+    document.getElementById('chatBody').dataset.brand = brand;
+
+    // Update keyword chips
+    renderKwChips(brand);
+
+    // Replay the conversation for this brand
+    replayConversation(brand);
+
+    // Clear status
+    const statusEl = document.getElementById('status');
+    statusEl.className = 'status';
+  }
+
+  function renderKwChips(brand) {
+    const container = document.getElementById('kwChips');
+    container.innerHTML = BRANDS[brand].keywords
+      .map(k => `<span class="kw-chip">${escHtml(k)}</span>`)
+      .join('');
+  }
+
+  /* ─────────────────────────────────────────────
+     Conversation playback
+  ───────────────────────────────────────────── */
+  async function replayConversation(brand) {
+    if (replayInProgress) return;
+    replayInProgress = true;
+    const btn = document.getElementById('replayBtn');
+    btn.disabled = true;
+
+    const body = document.getElementById('chatBody');
+    body.innerHTML = '';
+
+    const cfg = BRANDS[brand];
+    const msgs = cfg.conversation;
+    const DELAY_USER = 600;
+    const DELAY_BOT_TYPING = 900;
+    const DELAY_BOT_RENDER = 600;
+
+    for (let i = 0; i < msgs.length; i++) {
+      // Check brand didn't change mid-replay
+      if (currentBrand !== brand) { replayInProgress = false; return; }
+
+      const m = msgs[i];
+      if (m.role === 'bot') {
+        // Show typing indicator
+        const typing = document.createElement('div');
+        typing.className = 'typing-indicator';
+        typing.innerHTML = '<span></span><span></span><span></span>';
+        body.appendChild(typing);
+        body.scrollTop = body.scrollHeight;
+        await sleep(DELAY_BOT_TYPING);
+        if (currentBrand !== brand) { replayInProgress = false; return; }
+        body.removeChild(typing);
+        addMsg(body, 'bot', m.text);
+      } else {
+        await sleep(DELAY_USER);
+        if (currentBrand !== brand) { replayInProgress = false; return; }
+        addMsg(body, 'user', m.text);
+      }
+      body.scrollTop = body.scrollHeight;
+      await sleep(DELAY_BOT_RENDER);
+    }
+
+    // After last message, request (or restore cached) ad
+    if (currentBrand !== brand) { replayInProgress = false; return; }
+    await sleep(500);
+    await requestAndRenderAd(brand);
+
+    replayInProgress = false;
+    btn.disabled = false;
+  }
+
+  function addMsg(body, role, text) {
+    const el = document.createElement('div');
+    el.className = `msg ${role}`;
+    el.textContent = text;
+    body.appendChild(el);
+    return el;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  /* ─────────────────────────────────────────────
+     Ad request + render
+  ───────────────────────────────────────────── */
+  async function requestAndRenderAd(brand) {
+    const body = document.getElementById('chatBody');
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const cfg = BRANDS[brand];
+    const statusEl = document.getElementById('status');
+
+    // Wrapper bubble
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ad-bubble-wrapper';
+    wrapper.id = `adWrapper-${brand}`;
+
+    const label = document.createElement('div');
+    label.className = 'ad-bubble-label';
+    label.textContent = 'Sponsored';
+    wrapper.appendChild(label);
+
+    const slotEl = document.createElement('div');
+    slotEl.id = `adSlot-${brand}`;
+    wrapper.appendChild(slotEl);
+    body.appendChild(wrapper);
+    body.scrollTop = body.scrollHeight;
+
+    // Show loading
+    slotEl.innerHTML = `
+      <div style="padding:16px 14px; display:flex; align-items:center; gap:10px; color:#aaa; font-size:0.8rem;">
+        <div class="typing-indicator" style="padding:6px 10px;">
+          <span></span><span></span><span></span>
+        </div>
+        Loading sponsored content…
+      </div>`;
+
+    const requestId = `demo-${brand}-${Date.now()}`;
+    const payload = {
+      context: { keywords: cfg.keywords, surface: 'retailer_chatbot' },
+      session_token: `demo-${brand}-session`,
+      request_id: requestId
+    };
+
+    try {
+      const resp = await fetch('https://ambient-api.fly.dev/v1/ads/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (resp.status === 204) {
+        slotEl.innerHTML = `<div class="ad-empty">No fill — no matching campaign for these keywords yet.</div>`;
+        showStatus(`${brand}: 204 No Fill`);
+        return;
+      }
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        slotEl.innerHTML = `<div class="ad-empty">Error ${resp.status} — check API key.</div>`;
+        showStatus(`${brand}: Error ${resp.status}: ${err}`);
+        return;
+      }
+
+      const data = await resp.json();
+      showStatus(`${brand}: 200 OK — impression logged\n\n${JSON.stringify(data, null, 2)}`);
+      renderAdCard(slotEl, data.ad);
+
+    } catch (e) {
+      slotEl.innerHTML = `<div class="ad-empty">Network error — ${escHtml(e.message)}</div>`;
+      showStatus(`${brand}: Network error: ${e.message}`);
+    }
+
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function renderAdCard(container, ad) {
+    container.innerHTML = `
+      <div class="ad-card">
+        <div class="ad-disclosure">${escHtml(ad.disclosure_label || 'Sponsored')}</div>
+        <div class="ad-body">
+          <div class="ad-headline">${escHtml(ad.headline)}</div>
+          <div class="ad-copy">${escHtml(ad.body)}</div>
+          <a class="ad-cta"
+             href="${escAttr(ad.cta_url)}"
+             target="_blank"
+             rel="noopener">${escHtml(ad.cta_text || 'Learn More')}</a>
+        </div>
+      </div>`;
+  }
+
+  function replayTab() {
+    adRequested = {};
+    replayConversation(currentBrand);
+  }
+
+  /* ─────────────────────────────────────────────
+     Utility
+  ───────────────────────────────────────────── */
+  function showStatus(msg) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status visible';
+  }
+
+  function escHtml(s) {
+    return String(s || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function escAttr(s) {
+    const url = String(s || '');
+    return (url.startsWith('http://') || url.startsWith('https://')) ? url : '#';
+  }
+
+  /* ─────────────────────────────────────────────
+     Init
+  ───────────────────────────────────────────── */
+  renderKwChips('bestbuy');
+  replayConversation('bestbuy');
+</script>
+</body>
+</html>
