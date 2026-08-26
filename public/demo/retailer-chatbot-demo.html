@@ -4,18 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ambient Retailer Chatbot Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       --radius: 14px;
       --shadow: 0 4px 28px rgba(0,0,0,0.10);
     }
 
     body {
       font-family: var(--font);
-      background: #f2f4f8;
+      background: #f0f2f7;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -31,12 +33,12 @@
       text-align: center;
       margin-bottom: 28px;
     }
-    .page-header h1 { font-size: 1.4rem; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+    .page-header h1 { font-size: 1.35rem; font-weight: 800; color: #1a1a2e; margin-bottom: 6px; letter-spacing: -0.02em; }
     .page-header p  { font-size: 0.875rem; color: #666; }
     .ambient-badge {
       display: inline-block; margin-top: 8px;
       background: #1a1a2e; color: #fff;
-      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
       padding: 3px 10px; border-radius: 100px;
     }
 
@@ -51,20 +53,39 @@
       border-bottom: 2px solid #e8e8f0;
     }
     .tab-btn {
-      flex: 1; padding: 14px 8px 12px;
+      flex: 1; padding: 12px 6px 10px;
       background: transparent; border: none; cursor: pointer;
-      font-family: var(--font); font-size: 0.8rem; font-weight: 600; color: #888;
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      font-family: var(--font); font-size: 0.72rem; font-weight: 700; color: #999;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
       transition: background 0.15s, color 0.15s;
       border-bottom: 3px solid transparent;
-      margin-bottom: -2px;
+      margin-bottom: -2px; letter-spacing: 0.01em;
     }
-    .tab-btn .tab-icon { font-size: 1.3rem; line-height: 1; }
+    .tab-btn .tab-logo-wrap {
+      height: 22px; display: flex; align-items: center; justify-content: center;
+    }
+    .tab-btn .tab-logo-wrap img {
+      max-height: 22px; max-width: 80px; object-fit: contain;
+      filter: grayscale(1) opacity(0.45);
+      transition: filter 0.15s;
+    }
+    .tab-btn .tab-logo-fallback {
+      font-size: 0.78rem; font-weight: 800; color: #bbb;
+      letter-spacing: -0.01em;
+    }
+    .tab-btn:hover .tab-logo-wrap img { filter: grayscale(0.3) opacity(0.7); }
     .tab-btn:hover { background: #fafafa; }
-    .tab-btn.active[data-brand="bestbuy"] { color: #0046be; border-bottom-color: #0046be; background: #fff; }
-    .tab-btn.active[data-brand="walmart"] { color: #0071ce; border-bottom-color: #0071ce; background: #fff; }
-    .tab-btn.active[data-brand="petco"]   { color: #e4002b; border-bottom-color: #e4002b; background: #fff; }
-    .tab-btn.active[data-brand="target"]  { color: #cc0000; border-bottom-color: #cc0000; background: #fff; }
+
+    /* Active tab — per brand */
+    .tab-btn.active[data-brand="bestbuy"]  { color: #0046be; border-bottom-color: #0046be; background: #fff; }
+    .tab-btn.active[data-brand="walmart"]  { color: #0071ce; border-bottom-color: #0071ce; background: #fff; }
+    .tab-btn.active[data-brand="petco"]    { color: #e4002b; border-bottom-color: #e4002b; background: #fff; }
+    .tab-btn.active[data-brand="target"]   { color: #cc0000; border-bottom-color: #cc0000; background: #fff; }
+    .tab-btn.active .tab-logo-wrap img     { filter: grayscale(0) opacity(1) !important; }
+    .tab-btn.active[data-brand="bestbuy"] .tab-logo-fallback  { color: #0046be; }
+    .tab-btn.active[data-brand="walmart"] .tab-logo-fallback  { color: #0071ce; }
+    .tab-btn.active[data-brand="petco"]   .tab-logo-fallback  { color: #e4002b; }
+    .tab-btn.active[data-brand="target"]  .tab-logo-fallback  { color: #cc0000; }
 
     /* ── Chat surface ── */
     .chat-surface {
@@ -74,27 +95,61 @@
       box-shadow: var(--shadow);
       overflow: hidden;
     }
+
+    /* Chat header — brand-specific gradients */
     .chat-header {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 20px; color: #fff;
-      font-size: 0.9rem; font-weight: 700;
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 20px; color: #fff;
     }
-    .chat-header[data-brand="bestbuy"] { background: #0046be; }
-    .chat-header[data-brand="walmart"] { background: #0071ce; }
-    .chat-header[data-brand="petco"]   { background: #e4002b; }
-    .chat-header[data-brand="target"]  { background: #cc0000; }
+    .chat-header[data-brand="bestbuy"] { background: linear-gradient(135deg, #0046be 0%, #003399 100%); }
+    .chat-header[data-brand="walmart"] { background: linear-gradient(135deg, #0071ce 0%, #004f99 100%); }
+    .chat-header[data-brand="petco"]   { background: linear-gradient(135deg, #e4002b 0%, #aa0020 100%); }
+    .chat-header[data-brand="target"]  { background: linear-gradient(135deg, #cc0000 0%, #990000 100%); }
+
+    /* Brand logo in header */
+    .chat-header .header-logo {
+      height: 28px; display: flex; align-items: center; flex-shrink: 0;
+    }
+    .chat-header .header-logo img {
+      height: 28px; max-width: 110px; object-fit: contain;
+      filter: brightness(0) invert(1); /* white version */
+    }
+    .chat-header .header-logo .logo-fallback {
+      font-size: 1.1rem; font-weight: 800; color: #fff; letter-spacing: -0.02em;
+    }
+    /* BestBuy special: yellow accent on "Buy" */
+    .chat-header[data-brand="bestbuy"] .logo-fallback .accent { color: #FFE000; }
+
+    /* Divider between logo area and bot name */
+    .chat-header .header-divider {
+      width: 1px; height: 28px;
+      background: rgba(255,255,255,0.3);
+      flex-shrink: 0;
+    }
+
+    /* Avatar */
     .chat-header .avatar {
-      width: 34px; height: 34px; border-radius: 50%;
-      background: rgba(255,255,255,0.22);
+      width: 38px; height: 38px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; flex-shrink: 0;
+      font-size: 1rem; font-weight: 800; flex-shrink: 0;
+      letter-spacing: -0.03em;
     }
+    .chat-header[data-brand="bestbuy"] .avatar { background: #FFE000; color: #0046be; }
+    .chat-header[data-brand="walmart"] .avatar { background: #FFC220; color: #0071ce; }
+    .chat-header[data-brand="petco"]   .avatar { background: rgba(255,255,255,0.2); color: #fff; font-size: 1.15rem; }
+    .chat-header[data-brand="target"]  .avatar { background: rgba(255,255,255,0.2); color: #fff; font-size: 1.15rem; }
+
     .chat-header .title { display: flex; flex-direction: column; gap: 1px; }
-    .chat-header .title .name { font-size: 0.9rem; font-weight: 700; }
-    .chat-header .title .sub  { font-size: 0.72rem; font-weight: 400; opacity: 0.85; }
-    .chat-header .dot {
-      width: 8px; height: 8px; background: #6fec9d; border-radius: 50%;
-      margin-left: auto; box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+    .chat-header .title .name { font-size: 0.88rem; font-weight: 700; color: #fff; }
+    .chat-header .title .sub  { font-size: 0.7rem; font-weight: 400; color: rgba(255,255,255,0.8); }
+    .chat-header .online-indicator {
+      margin-left: auto; display: flex; align-items: center; gap: 5px;
+      font-size: 0.7rem; color: rgba(255,255,255,0.8); white-space: nowrap;
+    }
+    .chat-header .online-indicator .dot {
+      width: 7px; height: 7px; background: #6fec9d; border-radius: 50%;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+      flex-shrink: 0;
     }
 
     /* ── Message stream ── */
@@ -258,27 +313,56 @@
 
 <div class="tab-bar" role="tablist" aria-label="Retailer chatbots">
   <button class="tab-btn active" data-brand="bestbuy" role="tab" aria-selected="true"  id="tab-bestbuy" onclick="switchTab('bestbuy')">
-    <span class="tab-icon">🖥️</span>BestBuy
+    <div class="tab-logo-wrap">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Best_Buy_Logo.svg/320px-Best_Buy_Logo.svg.png"
+           alt="Best Buy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="tab-logo-fallback" style="display:none">Best Buy</span>
+    </div>
+    Best Buy
   </button>
   <button class="tab-btn"        data-brand="walmart" role="tab" aria-selected="false" id="tab-walmart" onclick="switchTab('walmart')">
-    <span class="tab-icon">🛒</span>Walmart
+    <div class="tab-logo-wrap">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Walmart_Spark.svg/240px-Walmart_Spark.svg.png"
+           alt="Walmart" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="tab-logo-fallback" style="display:none">Walmart</span>
+    </div>
+    Walmart
   </button>
   <button class="tab-btn"        data-brand="petco"   role="tab" aria-selected="false" id="tab-petco"   onclick="switchTab('petco')">
-    <span class="tab-icon">🐾</span>Petco
+    <div class="tab-logo-wrap">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Petco_Logo.svg/320px-Petco_Logo.svg.png"
+           alt="Petco" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="tab-logo-fallback" style="display:none">Petco</span>
+    </div>
+    Petco
   </button>
   <button class="tab-btn"        data-brand="target"  role="tab" aria-selected="false" id="tab-target"  onclick="switchTab('target')">
-    <span class="tab-icon">🎯</span>Target
+    <div class="tab-logo-wrap">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Target_logo.svg/240px-Target_logo.svg.png"
+           alt="Target" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="tab-logo-fallback" style="display:none">Target</span>
+    </div>
+    Target
   </button>
 </div>
 
 <div class="chat-surface">
   <div class="chat-header" id="chatHeader" data-brand="bestbuy">
-    <div class="avatar" id="chatAvatar">🖥️</div>
+    <div class="header-logo" id="chatHeaderLogo">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Best_Buy_Logo.svg/320px-Best_Buy_Logo.svg.png"
+           alt="Best Buy" id="chatLogoImg"
+           onerror="this.style.display='none';document.getElementById('chatLogoFallback').style.display='block'">
+      <span class="logo-fallback" id="chatLogoFallback" style="display:none">Best <span class="accent">Buy</span></span>
+    </div>
+    <div class="header-divider"></div>
+    <div class="avatar" id="chatAvatar">BB</div>
     <div class="title">
-      <span class="name" id="chatName">BestBuy Assistant</span>
+      <span class="name" id="chatName">Best Buy Assistant</span>
       <span class="sub"  id="chatSubtitle">Tech &amp; Electronics Expert</span>
     </div>
-    <div class="dot"></div>
+    <div class="online-indicator">
+      <div class="dot"></div>Online
+    </div>
   </div>
   <div class="chat-body" id="chatBody" data-brand="bestbuy"></div>
 </div>
@@ -308,9 +392,11 @@
   ─────────────────────────────────────────────────────────────── */
   const BRANDS = {
     bestbuy: {
-      name: 'BestBuy Assistant',
+      name: 'Best Buy Assistant',
       subtitle: 'Tech & Electronics Expert',
-      icon: '🖥️',
+      avatar: 'BB',
+      logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Best_Buy_Logo.svg/320px-Best_Buy_Logo.svg.png',
+      logoFallbackHtml: 'Best <span class="accent">Buy</span>',
       keywords: ['electronics', 'laptop', 'TV', 'bestbuy'],
       conversation: [
         { role: 'user', text: "I'm looking for a good laptop for college — budget around $800." },
@@ -331,7 +417,9 @@
     walmart: {
       name: 'Walmart Helper',
       subtitle: 'Everyday Savings & Deals',
-      icon: '🛒',
+      avatar: 'W',
+      logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Walmart_Spark.svg/240px-Walmart_Spark.svg.png',
+      logoFallbackHtml: 'Walmart',
       keywords: ['grocery', 'household', 'walmart', 'deals'],
       conversation: [
         { role: 'user', text: "I'm doing a big household restocking run. What are the best deals this week?" },
@@ -352,7 +440,9 @@
     petco: {
       name: 'Petco Advisor',
       subtitle: 'Pet Health & Nutrition Specialist',
-      icon: '🐾',
+      avatar: '🐾',
+      logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Petco_Logo.svg/320px-Petco_Logo.svg.png',
+      logoFallbackHtml: 'Petco',
       keywords: ['pet', 'dog', 'cat', 'petco', 'pet food'],
       conversation: [
         { role: 'user', text: "My Golden Retriever has been really itchy. Could it be his food?" },
@@ -373,7 +463,9 @@
     target: {
       name: 'Target Finds',
       subtitle: 'Style, Home & Everyday Essentials',
-      icon: '🎯',
+      avatar: '🎯',
+      logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Target_logo.svg/240px-Target_logo.svg.png',
+      logoFallbackHtml: 'Target',
       keywords: ['home', 'apparel', 'target', 'style'],
       conversation: [
         { role: 'user', text: "I'm redecorating my living room on a budget — any Target recommendations?" },
@@ -410,7 +502,24 @@
     const cfg = BRANDS[brand];
     const header = document.getElementById('chatHeader');
     header.dataset.brand = brand;
-    document.getElementById('chatAvatar').textContent = cfg.icon;
+
+    // Swap header logo
+    const logoImg = document.getElementById('chatLogoImg');
+    const logoFallback = document.getElementById('chatLogoFallback');
+    logoImg.src = cfg.logoUrl;
+    logoImg.alt = cfg.name;
+    logoImg.style.display = '';
+    logoFallback.innerHTML = cfg.logoFallbackHtml;
+    logoFallback.style.display = 'none';
+    // Re-attach onerror (src change resets it)
+    logoImg.onerror = function() {
+      this.style.display = 'none';
+      logoFallback.style.display = 'block';
+    };
+
+    // Swap avatar
+    document.getElementById('chatAvatar').textContent = cfg.avatar;
+
     document.getElementById('chatName').textContent = cfg.name;
     document.getElementById('chatSubtitle').textContent = cfg.subtitle;
     document.getElementById('chatBody').dataset.brand = brand;
