@@ -320,7 +320,7 @@
 </div>
 
 <div class="tab-bar" role="tablist" aria-label="Retailer chatbots">
-  <button class="tab-btn active" data-brand="bestbuy" role="tab" aria-selected="true"  id="tab-bestbuy" onclick="switchTab('bestbuy')">
+  <button class="tab-btn"        data-brand="bestbuy" role="tab" aria-selected="false" id="tab-bestbuy" onclick="switchTab('bestbuy')">
     <div class="tab-logo-wrap">
       <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Best_Buy_Logo.svg/320px-Best_Buy_Logo.svg.png"
            alt="Best Buy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
@@ -334,7 +334,7 @@
       <span class="tab-logo-fallback" style="display:none">Walmart</span>
     </div>
   </button>
-  <button class="tab-btn"        data-brand="petco"   role="tab" aria-selected="false" id="tab-petco"   onclick="switchTab('petco')">
+  <button class="tab-btn active" data-brand="petco"   role="tab" aria-selected="true"  id="tab-petco"   onclick="switchTab('petco')">
     <div class="tab-logo-wrap">
       <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Petco_Logo.svg/320px-Petco_Logo.svg.png"
            alt="Petco" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
@@ -741,9 +741,11 @@
     return (url.startsWith('http://') || url.startsWith('https://')) ? url : '#';
   }
 
-  /* ── Init ── */
-  renderKwChips('bestbuy');
-  replayConversation('bestbuy');
+  /* ── Init — start on Petco tab (active campaign) ── */
+  // Use switchTab to fully initialize header, chips, and conversation
+  // Override guard: temporarily blank currentBrand so switchTab doesn't short-circuit
+  currentBrand = '';
+  switchTab('petco');
 </script>
 </body>
 </html>
