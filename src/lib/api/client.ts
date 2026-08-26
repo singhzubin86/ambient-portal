@@ -436,7 +436,7 @@ export const portalAdvertiserCampaigns = {
     ),
 
   /** SPEC-A2: update mutable campaign fields */
-  update: (id: string, p: Partial<Pick<AdvertiserCampaign, "name" | "headline" | "body" | "cta_text" | "destination_url" | "keywords" | "topics" | "daily_cap_usd" | "end_date">>) =>
+  update: (id: string, p: Partial<Pick<AdvertiserCampaign, "name" | "headline" | "body" | "cta_text" | "destination_url" | "keywords" | "topics" | "daily_cap_usd" | "end_date" | "image_url">>) =>
     advertiserRequest<AdvertiserCampaign>(`/api/advertisers/campaigns/${id}`, {
       method: "PATCH",
       body: JSON.stringify(p),

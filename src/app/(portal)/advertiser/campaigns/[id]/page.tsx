@@ -13,6 +13,7 @@ function CampaignDetailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const justCreated = searchParams.get("created") === "1";
+  const justUpdated = searchParams.get("updated") === "1";
 
   const [campaign, setCampaign] = useState<AdvertiserCampaign | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +91,11 @@ function CampaignDetailContent() {
           <Banner variant="success" message="Campaign is live — it may take up to 30 seconds to appear in the ad system." />
         )}
 
+        {/* Updated success banner */}
+        {justUpdated && (
+          <Banner variant="success" message="Campaign updated successfully." />
+        )}
+
         {/* Action error */}
         {actionError && (
           <Banner variant="error" message={actionError} />
@@ -116,6 +122,13 @@ function CampaignDetailContent() {
                   : <><Play size={14} /> Resume</>}
               </Button>
             )}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push(`/advertiser/campaigns/${id}/edit`)}
+            >
+              Edit
+            </Button>
             <Button
               variant="secondary"
               size="sm"
