@@ -170,7 +170,18 @@ function CampaignDetailContent() {
         {/* Creative preview */}
         <div className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-lg)] p-6 space-y-4">
           <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">Creative preview</h2>
-          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-ad)]">
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-default)] bg-[var(--color-surface-ad)] overflow-hidden">
+            {campaign.image_url && (
+              <div className="w-full aspect-video bg-[var(--color-surface-hover)] overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={campaign.image_url}
+                  alt="Product"
+                  className="w-full h-full object-cover"
+                  onError={(e) => { (e.currentTarget.parentElement as HTMLDivElement).style.display = "none"; }}
+                />
+              </div>
+            )}
             <div className="px-3 pt-2 pb-1">
               <span className="text-[11px] font-semibold text-[var(--color-disclosure-text)]">◈ Sponsored</span>
             </div>
