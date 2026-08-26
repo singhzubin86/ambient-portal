@@ -218,20 +218,24 @@
       border: 1px solid #e2e2f0; border-radius: 14px;
       background: #fff; overflow: hidden;
       box-shadow: 0 2px 10px rgba(26,26,46,0.07);
+      display: flex; flex-direction: row; align-items: stretch;
     }
     .ad-card .ad-img {
-      width: 100%; aspect-ratio: 16/9; object-fit: cover;
+      width: 64px; min-width: 64px; height: 64px;
+      object-fit: cover; object-position: center;
+      border-radius: 10px 0 0 10px;
       display: block; background: #f0f0f8;
+      align-self: stretch; height: auto;
     }
     .ad-disclosure {
-      background: #f8f8ff; border-bottom: 1px solid #e8e8f0;
-      padding: 5px 14px;
-      font-size: 0.68rem; color: #999;
+      font-size: 0.65rem; color: #aaa;
       letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700;
+      margin-bottom: 3px;
     }
-    .ad-body { padding: 14px 16px; }
-    .ad-headline { font-size: 0.95rem; font-weight: 700; color: #1a1a2e; margin-bottom: 5px; }
-    .ad-copy { font-size: 0.82rem; color: #555; line-height: 1.55; margin-bottom: 12px; }
+    .ad-body { padding: 10px 14px; flex: 1; min-width: 0; }
+    .ad-headline { font-size: 0.88rem; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ad-copy { font-size: 0.78rem; color: #555; line-height: 1.45; margin-bottom: 10px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .ad-cta {
       display: inline-block; background: #1a1a2e; color: #fff;
       padding: 8px 18px; border-radius: 8px;
@@ -699,8 +703,8 @@
     container.innerHTML = `
       <div class="ad-card">
         ${imgHtml}
-        <div class="ad-disclosure">${escHtml(ad.disclosure_label || 'Sponsored')}</div>
         <div class="ad-body">
+          <div class="ad-disclosure">${escHtml(ad.disclosure_label || 'Sponsored')}</div>
           <div class="ad-headline">${escHtml(ad.headline)}</div>
           <div class="ad-copy">${escHtml(ad.body)}</div>
           <a class="ad-cta"
