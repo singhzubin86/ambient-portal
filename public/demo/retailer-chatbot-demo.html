@@ -53,19 +53,19 @@
       border-bottom: 2px solid #e8e8f0;
     }
     .tab-btn {
-      flex: 1; padding: 12px 6px 10px;
+      flex: 1; padding: 14px 8px;
       background: transparent; border: none; cursor: pointer;
       font-family: var(--font); font-size: 0.72rem; font-weight: 700; color: #999;
-      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
       transition: background 0.15s, color 0.15s;
       border-bottom: 3px solid transparent;
       margin-bottom: -2px; letter-spacing: 0.01em;
     }
     .tab-btn .tab-logo-wrap {
-      height: 22px; display: flex; align-items: center; justify-content: center;
+      height: 26px; display: flex; align-items: center; justify-content: center;
     }
     .tab-btn .tab-logo-wrap img {
-      max-height: 22px; max-width: 80px; object-fit: contain;
+      max-height: 26px; max-width: 90px; object-fit: contain;
       filter: grayscale(1) opacity(0.45);
       transition: filter 0.15s;
     }
@@ -318,7 +318,6 @@
            alt="Best Buy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
       <span class="tab-logo-fallback" style="display:none">Best Buy</span>
     </div>
-    Best Buy
   </button>
   <button class="tab-btn"        data-brand="walmart" role="tab" aria-selected="false" id="tab-walmart" onclick="switchTab('walmart')">
     <div class="tab-logo-wrap">
@@ -326,7 +325,6 @@
            alt="Walmart" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
       <span class="tab-logo-fallback" style="display:none">Walmart</span>
     </div>
-    Walmart
   </button>
   <button class="tab-btn"        data-brand="petco"   role="tab" aria-selected="false" id="tab-petco"   onclick="switchTab('petco')">
     <div class="tab-logo-wrap">
@@ -334,7 +332,6 @@
            alt="Petco" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
       <span class="tab-logo-fallback" style="display:none">Petco</span>
     </div>
-    Petco
   </button>
   <button class="tab-btn"        data-brand="target"  role="tab" aria-selected="false" id="tab-target"  onclick="switchTab('target')">
     <div class="tab-logo-wrap">
@@ -342,7 +339,6 @@
            alt="Target" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
       <span class="tab-logo-fallback" style="display:none">Target</span>
     </div>
-    Target
   </button>
 </div>
 
