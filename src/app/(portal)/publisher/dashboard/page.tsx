@@ -304,7 +304,11 @@ export default function PublisherDashboard() {
                         tick={{ fontSize: 10, fill: "#9CA3AF" }}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
+                        tickFormatter={(v: number) => {
+                          if (v === 0) return "$0";
+                          if (v < 0.01) return `$${v.toFixed(3)}`;
+                          return `$${v.toFixed(2)}`;
+                        }}
                       />
                       <YAxis
                         type="category"
@@ -312,13 +316,22 @@ export default function PublisherDashboard() {
                         tick={{ fontSize: 10, fill: "#6B7280" }}
                         tickLine={false}
                         axisLine={false}
-                        width={64}
+                        width={72}
+                        tickFormatter={(v: string) => {
+                          const row = topicRows.find((r) => r.keyword === v);
+                          return row?.display_keyword ?? v;
+                        }}
                       />
                       <Tooltip
                         formatter={(v) => [formatCurrency(Number(v)), "Est. earnings"]}
+                        labelFormatter={(label) => {
+                          const key = typeof label === "string" ? label : String(label ?? "");
+                          const row = topicRows.find((r) => r.keyword === key);
+                          return row?.display_keyword ?? key;
+                        }}
                         contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #E5E7EB" }}
                       />
-                      <Bar dataKey="spend_usd" radius={[0, 4, 4, 0]} maxBarSize={14}>
+                      <Bar dataKey="spend_usd" radius={[0, 4, 4, 0]} maxBarSize={14} minPointSize={3}>
                         {topicRows.slice(0, 8).map((_, i) => (
                           <Cell
                             key={i}
@@ -379,7 +392,7 @@ export default function PublisherDashboard() {
                       {topicRows.slice(0, 10).map((row, i) => (
                         <tr key={row.keyword} className="border-b border-[var(--color-border-subtle)] last:border-0">
                           <td className="py-1.5 text-[11px] text-[var(--color-text-tertiary,#9CA3AF)] w-6">{i + 1}</td>
-                          <td className="py-1.5 text-[12px] font-medium text-[var(--color-text-primary)]">{row.keyword}</td>
+                          <td className="py-1.5 text-[12px] font-medium text-[var(--color-text-primary)]">{row.display_keyword ?? row.keyword}</td>
                           <td className="py-1.5 text-[12px] text-[var(--color-text-secondary)] text-right tabular-nums">{formatNumber(row.impressions)}</td>
                           <td className="py-1.5 text-[12px] font-semibold text-[var(--color-text-primary)] text-right tabular-nums">{formatCurrency(row.spend_usd)}</td>
                         </tr>

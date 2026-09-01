@@ -298,6 +298,8 @@ export interface IntegrationStatusResponse {
 /** One row returned by GET /v1/portal/publishers/me/stats/topics */
 export interface TopicStatRow {
   keyword: string;
+  /** Human-readable label (pre-stem original keyword). Falls back to `keyword` when absent (pre-feature WAL records). */
+  display_keyword?: string;
   impressions: number;
   clicks: number;
   spend_usd: number;
