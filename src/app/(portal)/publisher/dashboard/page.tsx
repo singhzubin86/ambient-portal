@@ -16,20 +16,6 @@ import type { StatRow, TopicStatRow } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/useAuth";
 import type { IntegrationStatus } from "@/types";
 
-// ── Mock topic data — used while Core's /stats/topics endpoint is in flight ──
-// Shape matches TopicStatRow[]. Remove MOCK_TOPICS once Core's API lands and
-// replace the topicStats() call fallback with real data only.
-const MOCK_TOPICS: TopicStatRow[] = [
-  { keyword: "travel",      impressions: 120, clicks: 14, spend_usd: 0.48 },
-  { keyword: "hotels",      impressions:  95, clicks: 11, spend_usd: 0.38 },
-  { keyword: "electronics", impressions:  80, clicks:  9, spend_usd: 0.32 },
-  { keyword: "laptops",     impressions:  65, clicks:  7, spend_usd: 0.26 },
-  { keyword: "finance",     impressions:  52, clicks:  5, spend_usd: 0.21 },
-  { keyword: "savings",     impressions:  44, clicks:  4, spend_usd: 0.18 },
-  { keyword: "budget",      impressions:  38, clicks:  3, spend_usd: 0.15 },
-  { keyword: "shopping",    impressions:  30, clicks:  2, spend_usd: 0.12 },
-];
-
 const TOPIC_BAR_COLOR = "#4F46E5";
 
 const STATUS_CONFIG: Record<IntegrationStatus, { label: string; border: string; bg: string; text: string; dot: string }> = {
@@ -66,8 +52,7 @@ export default function PublisherDashboard() {
         return Promise.all([
           portalReporting.integrationStatus(),
           portalReporting.stats(),
-          // topicStats() falls back to mock data when endpoint is 404 (not yet deployed)
-          portalReporting.topicStats().catch(() => ({ rows: MOCK_TOPICS })),
+          portalReporting.topicStats(),
         ]);
       })
       .then(([statusRes, statsRes, topicsRes]) => {
