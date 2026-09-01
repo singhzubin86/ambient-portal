@@ -221,6 +221,16 @@ export interface PublisherRecord {
   created_at: string;
 }
 
+export interface PublisherUpdatePayload {
+  app_name?: string;
+  app_url?: string;
+  app_category?: AppCategory;
+  mau_range?: MauRange;
+  integration_type?: IntegrationType;
+  payout_contact_name?: string;
+  payout_email?: string;
+}
+
 export const portalPublishers = {
   /**
    * POST /api/publishers/onboard — same-origin proxy to POST /v1/portal/publishers
@@ -237,6 +247,16 @@ export const portalPublishers = {
    * Returns masked key. Browser can't send portal cookie cross-origin.
    */
   me: () => portalRequest<PublisherRecord>("/api/publishers/me"),
+
+  /**
+   * PUT /api/publishers/me — same-origin proxy to PUT /v1/portal/publishers/me
+   * Updates editable publisher profile fields.
+   */
+  update: (p: PublisherUpdatePayload) =>
+    portalRequest<PublisherRecord>("/api/publishers/me", {
+      method: "PUT",
+      body: JSON.stringify(p),
+    }),
 
   /**
    * POST /api/publishers/me/regenerate-key — same-origin proxy
