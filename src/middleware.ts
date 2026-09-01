@@ -41,8 +41,12 @@ export function middleware(req: NextRequest) {
   const sessionCookie = req.cookies.get(COOKIE_NAME);
   const hasSession = Boolean(sessionCookie?.value);
 
-  // Logged-in users hitting auth pages → send to their dashboard
-  if (hasSession && AUTH_PAGES.some((p) => pathname.startsWith(p))) {
+  // Logged-in users hitting auth pages → send to their dashboard.
+  // Exception: if the URL contains ?expired=true the user is being redirected
+  // here because their session just expired. Let them through so the login
+  // form can render even if the cookie clear and the redirect are not atomic.
+  const isExpiredRedirect = req.nextUrl.searchParams.get("expired") === "true";
+  if (hasSession && !isExpiredRedirect && AUTH_PAGES.some((p) => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL("/publisher/dashboard", req.url));
   }
 
