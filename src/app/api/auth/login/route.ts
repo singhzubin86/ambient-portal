@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const COOKIE_NAME = "ambient_portal_session";
-const COOKIE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days — match API JWT TTL
+const COOKIE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days — must match JWT_TTL_SECONDS in ambient-api/src/lib/portal-auth.ts
 
 export async function POST(req: NextRequest) {
   try {

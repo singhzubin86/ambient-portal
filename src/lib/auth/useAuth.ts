@@ -23,20 +23,31 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     let cancelled = false;
-    portalAuth
-      .me()
-      .then((u) => { if (!cancelled) setUser(u); })
-      .catch((err: unknown) => {
+
+    (async () => {
+      try {
+        const u = await portalAuth.me();
+        if (!cancelled) setUser(u);
+      } catch (err: unknown) {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 401) {
-          // Session expired — middleware missed it (cookie present but revoked).
-          // Redirect to login.
+          // Session expired — middleware missed it (cookie present but JWT invalid).
+          // Clear the server-side cookie FIRST so middleware won't bounce the user
+          // back to the dashboard and create an infinite redirect loop.
+          try {
+            await fetch("/api/auth/logout", { method: "POST" });
+          } catch {
+            // Swallow — redirect regardless; ?expired=true guard in middleware
+            // is the belt-and-suspenders fallback if the clear races.
+          }
           window.location.href = "/login?expired=true";
         } else {
-          setError(err instanceof Error ? err.message : "Session error");
+          if (!cancelled) setError(err instanceof Error ? err.message : "Session error");
         }
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
     return () => { cancelled = true; };
   }, []);
