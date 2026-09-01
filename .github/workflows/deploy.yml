@@ -1,0 +1,57 @@
+# Ambient Portal — CI/CD pipeline
+# On PR to main: build check only (Next.js compile + TypeScript)
+# On merge to main: build check + rolling deploy to Fly.io
+# Mirrors ambient-api/.github/workflows/deploy.yml pattern
+# Ref: PLANS/AMBIENT_INFRA_PLAN_V1.md §4
+#
+# Required GitHub secret: FLY_API_TOKEN
+# Set at: https://github.com/singhzubin86/ambient-portal/settings/secrets/actions
+
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Build check ──────────────────────────────────────────────────────────────
+  build:
+    name: Build & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: TypeScript + Next.js build
+        run: npm run build
+        env:
+          # Dummy values so Next.js build doesn't fail on missing env at build time.
+          # Runtime env vars are injected via Fly secrets.
+          NEXT_PUBLIC_API_URL: https://ambient-api.fly.dev
+
+  # ── Deploy ───────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Fly.io
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy (rolling — zero downtime)
+        run: flyctl deploy --remote-only --strategy rolling --wait-timeout 120
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
