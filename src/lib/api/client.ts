@@ -224,11 +224,8 @@ export interface PublisherRecord {
 export interface PublisherUpdatePayload {
   app_name?: string;
   app_url?: string;
-  app_category?: AppCategory;
-  mau_range?: MauRange;
-  integration_type?: IntegrationType;
-  payout_contact_name?: string;
-  payout_email?: string;
+  // payout_contact_name and payout_email are not yet columns in the DB schema.
+  // They will be added here once the billing/Stripe migration lands (Core task).
 }
 
 export const portalPublishers = {

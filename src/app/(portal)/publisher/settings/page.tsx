@@ -10,15 +10,16 @@ interface Fields {
   email: string;
   company_name: string;
   // Publisher profile (from /api/publishers/me) — editable
+  // Note: publishers.name == publishers.app_name (same value); contact_email == login email.
+  // There are no separate payout_contact_name / payout_email columns yet — those come later
+  // with billing/Stripe work. Only app_name and app_url are editable here.
   app_name: string;
   app_url: string;
-  payout_contact_name: string;
-  payout_email: string;
 }
 
 const EMPTY: Fields = {
   full_name: "", email: "", company_name: "",
-  app_name: "", app_url: "", payout_contact_name: "", payout_email: "",
+  app_name: "", app_url: "",
 };
 
 export default function PublisherSettingsPage() {
@@ -40,13 +41,11 @@ export default function PublisherSettingsPage() {
     ])
       .then(([me, pub]) => {
         setFields({
-          full_name:           me.full_name ?? "",
-          email:               me.email ?? "",
-          company_name:        me.company_name ?? "",
-          app_name:            pub?.app_name ?? "",
-          app_url:             pub?.app_url ?? "",
-          payout_contact_name: pub?.name ?? "",
-          payout_email:        pub?.contact_email ?? "",
+          full_name:    me.full_name ?? "",
+          email:        me.email ?? "",
+          company_name: me.company_name ?? "",
+          app_name:     pub?.app_name ?? "",
+          app_url:      pub?.app_url ?? "",
         });
       })
       .catch((err: unknown) => {
@@ -68,18 +67,13 @@ export default function PublisherSettingsPage() {
     if (fields.app_url && !fields.app_url.startsWith("http")) {
       fe.app_url = "Must be a valid URL (https://...)";
     }
-    if (fields.payout_email && !fields.payout_email.includes("@")) {
-      fe.payout_email = "Must be a valid email";
-    }
     if (Object.keys(fe).length) { setFieldErrors(fe); return; }
 
     setSaving(true);
     try {
       await portalPublishers.update({
-        app_name:            fields.app_name || undefined,
-        app_url:             fields.app_url || undefined,
-        payout_contact_name: fields.payout_contact_name || undefined,
-        payout_email:        fields.payout_email || undefined,
+        app_name: fields.app_name || undefined,
+        app_url:  fields.app_url || undefined,
       });
       setSuccess(true);
     } catch (err) {
@@ -161,28 +155,8 @@ export default function PublisherSettingsPage() {
               />
             </div>
 
-            {/* Payout contact — editable */}
-            <div
-              className="bg-[var(--color-surface-card)] border border-[var(--color-border-default)] rounded-[var(--radius-lg)] p-6 space-y-4"
-              style={{ boxShadow: "var(--shadow-card)" }}
-            >
-              <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">Payout contact</h2>
-              <Input
-                label="Payout contact name"
-                value={fields.payout_contact_name}
-                onChange={(e) => set("payout_contact_name", e.target.value)}
-                error={fieldErrors.payout_contact_name}
-                placeholder="Jane Smith"
-              />
-              <Input
-                label="Payout email"
-                type="email"
-                value={fields.payout_email}
-                onChange={(e) => set("payout_email", e.target.value)}
-                error={fieldErrors.payout_email}
-                placeholder="billing@myapp.com"
-              />
-            </div>
+            {/* Payout contact section deferred: payout_contact_name / payout_email columns
+                do not exist in the DB yet. Will be added with billing/Stripe work. */}
 
             <Button onClick={handleSave} loading={saving}>
               Save changes
