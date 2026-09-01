@@ -295,6 +295,27 @@ export interface IntegrationStatusResponse {
   checked_at: string;
 }
 
+/** One row returned by GET /v1/portal/publishers/me/stats/topics */
+export interface TopicStatRow {
+  keyword: string;
+  impressions: number;
+  clicks: number;
+  spend_usd: number;
+}
+
+/**
+ * Response from GET /v1/portal/publishers/me/stats/topics.
+ *
+ * Note: `rows` reflects only the live WAL buffer (not a full 30d window).
+ * Full historical data available after R2 read path lands in v1.1.
+ * Each keyword in matched_keywords receives the full impression spend — aggregate
+ * across topics will exceed the publisher's total, which is expected behaviour.
+ */
+export interface TopicStatsResponse {
+  rows: TopicStatRow[];
+  attribution_note?: string;
+}
+
 export const portalReporting = {
   /**
    * GET /api/reporting/stats — same-origin proxy to GET /v1/portal/publishers/me/stats
@@ -306,6 +327,13 @@ export const portalReporting = {
       `/api/reporting/stats${qs ? `?${qs}` : ""}`
     );
   },
+
+  /**
+   * GET /api/reporting/topics — same-origin proxy to
+   * GET /v1/portal/publishers/me/stats/topics
+   */
+  topicStats: () =>
+    portalRequest<TopicStatsResponse>("/api/reporting/topics"),
 
   /**
    * GET /api/reporting/integration-status — same-origin proxy

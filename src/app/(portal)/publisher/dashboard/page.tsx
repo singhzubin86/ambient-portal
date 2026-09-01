@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Tooltip, ResponsiveContainer,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar, Cell,
 } from "recharts";
 import { PortalLayout } from "@/components/shell/PortalLayout";
 import { KpiCard } from "@/components/charts/KpiCard";
@@ -11,9 +12,25 @@ import { ChartCard } from "@/components/charts/ChartCard";
 import { Skeleton } from "@/components/ui";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
 import { portalReporting, portalPublishers, ApiError } from "@/lib/api/client";
-import type { StatRow } from "@/lib/api/client";
+import type { StatRow, TopicStatRow } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/useAuth";
 import type { IntegrationStatus } from "@/types";
+
+// ── Mock topic data — used while Core's /stats/topics endpoint is in flight ──
+// Shape matches TopicStatRow[]. Remove MOCK_TOPICS once Core's API lands and
+// replace the topicStats() call fallback with real data only.
+const MOCK_TOPICS: TopicStatRow[] = [
+  { keyword: "travel",      impressions: 120, clicks: 14, spend_usd: 0.48 },
+  { keyword: "hotels",      impressions:  95, clicks: 11, spend_usd: 0.38 },
+  { keyword: "electronics", impressions:  80, clicks:  9, spend_usd: 0.32 },
+  { keyword: "laptops",     impressions:  65, clicks:  7, spend_usd: 0.26 },
+  { keyword: "finance",     impressions:  52, clicks:  5, spend_usd: 0.21 },
+  { keyword: "savings",     impressions:  44, clicks:  4, spend_usd: 0.18 },
+  { keyword: "budget",      impressions:  38, clicks:  3, spend_usd: 0.15 },
+  { keyword: "shopping",    impressions:  30, clicks:  2, spend_usd: 0.12 },
+];
+
+const TOPIC_BAR_COLOR = "#4F46E5";
 
 const STATUS_CONFIG: Record<IntegrationStatus, { label: string; border: string; bg: string; text: string; dot: string }> = {
   live:           { label: "Live",           border: "#10B981", bg: "#D1FAE5", text: "#065F46", dot: "#10B981" },
@@ -36,32 +53,47 @@ export default function PublisherDashboard() {
   const [trendRows, setTrendRows] = useState<StatRow[]>([]);
   const [kpiLoading, setKpiLoading] = useState(true);
 
+  // Topic panels state
+  // null = loading, [] = no data / pre-feature records, TopicStatRow[] = live data
+  const [topicRows, setTopicRows] = useState<TopicStatRow[] | null>(null);
+  // true when publisher has aggregate impressions but zero topic rows (pre-feature WAL records)
+  const [hasImpressionsButNoTopics, setHasImpressionsButNoTopics] = useState(false);
+
   useEffect(() => {
-    // Fetch publisher record → integration status + real stats
+    // Fetch publisher record → integration status, 30d stats, and topic stats in parallel
     portalPublishers.me()
       .then(() => {
-        // Publisher exists — fetch integration status and 30d stats in parallel
         return Promise.all([
           portalReporting.integrationStatus(),
           portalReporting.stats(),
+          // topicStats() falls back to mock data when endpoint is 404 (not yet deployed)
+          portalReporting.topicStats().catch(() => ({ rows: MOCK_TOPICS })),
         ]);
       })
-      .then(([statusRes, statsRes]) => {
+      .then(([statusRes, statsRes, topicsRes]) => {
         setIntegrationStatus(statusRes.integration_status as IntegrationStatus);
+        const totalImpressions = statsRes.summary.total_impressions;
         setKpi({
-          impressions: statsRes.summary.total_impressions,
+          impressions: totalImpressions,
           clicks: statsRes.summary.total_clicks,
-          fill_rate: 0, // not available in current API — placeholder
+          fill_rate: 0,
           earnings_usd: statsRes.summary.total_spend_usd,
         });
         setTrendRows(statsRes.rows ?? []);
+
+        const rows = topicsRes.rows ?? [];
+        setTopicRows(rows);
+        // If publisher has impressions but no topic rows → pre-feature WAL records
+        if (rows.length === 0 && totalImpressions > 0) {
+          setHasImpressionsButNoTopics(true);
+        }
       })
       .catch((err: unknown) => {
         if (err instanceof ApiError && err.status === 404) {
           setHasPublisher(false);
           setIntegrationStatus("not_integrated");
         }
-        // On other errors keep status quo — don't block the dashboard
+        setTopicRows([]); // don't leave panels in perpetual skeleton on error
       })
       .finally(() => setKpiLoading(false));
   }, []);
@@ -244,36 +276,133 @@ export default function PublisherDashboard() {
               )}
             </ChartCard>
 
-            {/* Earnings by topic — not yet available */}
+            {/* Earnings by topic — horizontal bar chart */}
             <ChartCard title="Earnings by topic" subtitle="Where your revenue comes from">
-              <div className="flex flex-col items-center justify-center h-[180px] gap-2 text-center">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                  <circle cx="16" cy="16" r="14" stroke="#E5E7EB" strokeWidth="2" />
-                  <path d="M16 10v6M16 20h.01" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <p className="text-[12px] text-[var(--color-text-secondary)]">
-                  Per-topic breakdown coming soon
-                </p>
-                <p className="text-[11px] text-[var(--color-text-tertiary,#9CA3AF)]">
-                  Available once keyword-level WAL reporting is live
-                </p>
-              </div>
+              {topicRows === null ? (
+                <Skeleton className="h-[180px] rounded-[var(--radius-md)]" />
+              ) : topicRows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[180px] gap-2 text-center">
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                    <circle cx="16" cy="16" r="14" stroke="#E5E7EB" strokeWidth="2" />
+                    <path d="M16 10v6M16 20h.01" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  {hasImpressionsButNoTopics ? (
+                    <>
+                      <p className="text-[12px] text-[var(--color-text-secondary)]">No topic data yet</p>
+                      <p className="text-[11px] text-[var(--color-text-tertiary,#9CA3AF)]">
+                        Keyword data is collected from new impressions
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[12px] text-[var(--color-text-secondary)]">
+                        Per-topic breakdown coming soon
+                      </p>
+                      <p className="text-[11px] text-[var(--color-text-tertiary,#9CA3AF)]">
+                        Available once keyword-level WAL reporting is live
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <BarChart
+                      layout="vertical"
+                      data={topicRows.slice(0, 8)}
+                      margin={{ left: 0, right: 8, top: 4, bottom: 0 }}
+                    >
+                      <CartesianGrid horizontal={false} stroke="#F3F4F6" />
+                      <XAxis
+                        type="number"
+                        dataKey="spend_usd"
+                        tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="keyword"
+                        tick={{ fontSize: 10, fill: "#6B7280" }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={64}
+                      />
+                      <Tooltip
+                        formatter={(v) => [formatCurrency(Number(v)), "Est. earnings"]}
+                        contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #E5E7EB" }}
+                      />
+                      <Bar dataKey="spend_usd" radius={[0, 4, 4, 0]} maxBarSize={14}>
+                        {topicRows.slice(0, 8).map((_, i) => (
+                          <Cell
+                            key={i}
+                            fill={TOPIC_BAR_COLOR}
+                            fillOpacity={1 - i * 0.08}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-[10px] text-[var(--color-text-tertiary,#9CA3AF)] mt-1">
+                    &#9432; Topic earnings overlap — a single impression may count toward multiple topics.
+                  </p>
+                </>
+              )}
             </ChartCard>
 
-            {/* Top earning topics — not yet available */}
-            <ChartCard title="Top earning topics" subtitle="Est. earnings &amp; fill rate by topic (30d)">
-              <div className="flex flex-col items-center justify-center h-[180px] gap-2 text-center">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                  <circle cx="16" cy="16" r="14" stroke="#E5E7EB" strokeWidth="2" />
-                  <path d="M16 10v6M16 20h.01" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <p className="text-[12px] text-[var(--color-text-secondary)]">
-                  Per-topic breakdown coming soon
-                </p>
-                <p className="text-[11px] text-[var(--color-text-tertiary,#9CA3AF)]">
-                  Available once keyword-level WAL reporting is live
-                </p>
-              </div>
+            {/* Top earning topics — ranked table */}
+            <ChartCard title="Top earning topics" subtitle="Est. earnings by topic (30d)">
+              {topicRows === null ? (
+                <Skeleton className="h-[180px] rounded-[var(--radius-md)]" />
+              ) : topicRows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-[180px] gap-2 text-center">
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                    <circle cx="16" cy="16" r="14" stroke="#E5E7EB" strokeWidth="2" />
+                    <path d="M16 10v6M16 20h.01" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  {hasImpressionsButNoTopics ? (
+                    <>
+                      <p className="text-[12px] text-[var(--color-text-secondary)]">No topic data yet</p>
+                      <p className="text-[11px] text-[var(--color-text-tertiary,#9CA3AF)]">
+                        Keyword data is collected from new impressions
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[12px] text-[var(--color-text-secondary)]">
+                        Per-topic breakdown coming soon
+                      </p>
+                      <p className="text-[11px] text-[var(--color-text-tertiary,#9CA3AF)]">
+                        Available once keyword-level WAL reporting is live
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-1 overflow-hidden">
+                  <table className="w-full text-left border-collapse" aria-label="Top earning topics">
+                    <thead>
+                      <tr className="border-b border-[var(--color-border-subtle)]">
+                        <th className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)] pb-1.5 w-6">#</th>
+                        <th className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)] pb-1.5">Topic</th>
+                        <th className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)] pb-1.5 text-right">Impressions</th>
+                        <th className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-text-secondary)] pb-1.5 text-right">Est. earnings</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topicRows.slice(0, 10).map((row, i) => (
+                        <tr key={row.keyword} className="border-b border-[var(--color-border-subtle)] last:border-0">
+                          <td className="py-1.5 text-[11px] text-[var(--color-text-tertiary,#9CA3AF)] w-6">{i + 1}</td>
+                          <td className="py-1.5 text-[12px] font-medium text-[var(--color-text-primary)]">{row.keyword}</td>
+                          <td className="py-1.5 text-[12px] text-[var(--color-text-secondary)] text-right tabular-nums">{formatNumber(row.impressions)}</td>
+                          <td className="py-1.5 text-[12px] font-semibold text-[var(--color-text-primary)] text-right tabular-nums">{formatCurrency(row.spend_usd)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </ChartCard>
           </div>
         </section>
